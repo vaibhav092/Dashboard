@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Button } from './ui/button';
 import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
-import { auth} from '@/lib/Firebase.js';
+import { auth } from '@/lib/Firebase.js';
 import { useIsLogin } from '@/context/isLogin.jsx';
 import { useRole } from '@/context/Role.jsx'; // <-- Add this import
 import { useNavigate } from 'react-router';

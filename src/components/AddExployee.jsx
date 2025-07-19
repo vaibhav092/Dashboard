@@ -6,6 +6,9 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { ExclamationTriangleIcon } from '@radix-ui/react-icons';
+
 import {
     Card,
     CardHeader,
@@ -13,9 +16,11 @@ import {
     CardDescription,
     CardContent,
 } from '@/components/ui/card';
-
+import { useNavigate } from 'react-router';
 
 export default function AddEmployee() {
+    const navigate = useNavigate();
+    const [authError, setAuthError] = useState(null); // Add this below other state declarations
     const [formData, setFormData] = useState({
         name: '',
         email: '',
@@ -26,19 +31,16 @@ export default function AddEmployee() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        console.log("Submitting:", {
-  email: formData.email,
-  password: formData.password,
-  passwordLength: formData.password.length
-});
+        setAuthError(null); // Reset error state
+
         // Validation
         if (formData.password !== formData.confirmPassword) {
-            toast.error("Passwords don't match");
+            setAuthError("Passwords don't match");
             return;
         }
 
-        if (formData.password.length < 6) {
-            toast.error('Password must be at least 6 characters');
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+            setAuthError('Please enter a valid email');
             return;
         }
 
@@ -46,39 +48,53 @@ export default function AddEmployee() {
         const toastId = toast.loading('Creating employee account...');
 
         try {
-            // 1. Create auth user
+            // 1. Create Auth User
             const userCredential = await createUserWithEmailAndPassword(
                 auth,
-                formData.email,
+                formData.email.trim(),
                 formData.password,
             );
 
             // 2. Save to Firestore
             await setDoc(doc(db, 'users', userCredential.user.uid), {
                 uid: userCredential.user.uid,
-                name: formData.name,
-                email: formData.email,
+                name: formData.name.trim(),
+                email: formData.email.trim().toLowerCase(),
                 createdAt: serverTimestamp(),
                 isActive: true,
-                lastLogin: null,
             });
 
             toast.success(`Employee ${formData.name} added successfully`, {
                 id: toastId,
             });
 
-            // Reset form
+            // Reset form and navigate only on success
             setFormData({
                 name: '',
                 email: '',
                 password: '',
                 confirmPassword: '',
             });
+            navigate('/admin/employee');
         } catch (error) {
+            console.error('Full error:', error);
+
             let errorMessage = error.message;
-            if (error.code === 'auth/email-already-in-use') {
-                errorMessage = 'Email is already registered';
+            switch (error.code) {
+                case 'auth/email-already-in-use':
+                    errorMessage = 'This email is already registered';
+                    setAuthError(errorMessage); // Set error state
+                    break;
+                case 'auth/invalid-email':
+                    errorMessage = 'Invalid email format';
+                    setAuthError(errorMessage); // Set error state
+                    break;
+                case 'auth/weak-password':
+                    errorMessage = 'Password must be ≥6 characters';
+                    setAuthError(errorMessage); // Set error state
+                    break;
             }
+
             toast.error(`Failed: ${errorMessage}`, { id: toastId });
         } finally {
             setLoading(false);
@@ -102,6 +118,12 @@ export default function AddEmployee() {
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
+                    {authError && (
+                        <Alert variant='destructive' className='mb-4'>
+                            <ExclamationTriangleIcon className='h-4 w-4' />
+                            <AlertDescription>{authError}</AlertDescription>
+                        </Alert>
+                    )}
                     <form onSubmit={handleSubmit} className='space-y-4'>
                         <div className='space-y-2'>
                             <Label htmlFor='name'>Full Name</Label>
@@ -155,7 +177,6 @@ export default function AddEmployee() {
                                 />
                             </div>
                         </div>
-
 
                         <Button
                             type='submit'

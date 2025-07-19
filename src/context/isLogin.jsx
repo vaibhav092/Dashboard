@@ -1,8 +1,7 @@
 // src/context/isLogin.jsx
 import { createContext, useState, useEffect, useContext } from 'react';
-import {  onAuthStateChanged } from 'firebase/auth';
-import { auth} from '@/lib/Firebase';
-
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth } from '@/lib/Firebase';
 
 export const IsLoginContext = createContext();
 
