@@ -137,7 +137,7 @@ export default function EmployeesList() {
                         </Button>
                         <Button
                             variant='outline'
-                            onClick={() => navigate('/admin/clients')}
+                            onClick={() => navigate('/admin/client')}
                         >
                             <UserPlus className='mr-2 h-4 w-4' />
                             Manage Clients
