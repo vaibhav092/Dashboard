@@ -6,6 +6,8 @@ import Layout from './Layout';
 import AdminProtectedRoute from './components/AdminProtectedRoute';
 import AddEmployee from '@/components/AddExployee';
 import EmployeesList from '@/components/ExployeeList';
+import AddClient from './components/AddClient';
+import ClientsList from './components/ClientList';
 
 function App() {
     return (
@@ -22,7 +24,7 @@ function App() {
                             </ProtectedRoute>
                         }
                     >
-                        <Route element={<Home />} />
+                        <Route index element={<Home />} />
                     </Route>
 
                     <Route
@@ -36,6 +38,10 @@ function App() {
                         <Route path='employee'>
                             <Route path='add' element={<AddEmployee />} />
                             <Route index element={<EmployeesList />} />
+                        </Route>
+                        <Route path='client'>
+                            <Route path='add' element={<AddClient />} />
+                            <Route index element={<ClientsList />} />
                         </Route>
                     </Route>
                 </Routes>
