@@ -121,7 +121,7 @@ export default function ClientsList() {
                     <CardTitle className="text-3xl font-bold text-gray-800">Client Management</CardTitle>
                     <div className="flex items-center space-x-4">
                         <Button
-                            onClick={() => navigate('/admin/clients/add')}
+                            onClick={() => navigate('/admin/client/add')}
                             className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-md shadow-md transition duration-300 ease-in-out"
                         >
                             <Plus className="mr-2 h-4 w-4" /> Add Client
