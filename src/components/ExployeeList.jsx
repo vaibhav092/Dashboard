@@ -130,7 +130,7 @@ export default function EmployeesList() {
                     <CardTitle>Employee Management</CardTitle>
                     <div className='flex gap-2'>
                         <Button
-                            onClick={() => navigate('/admin/employees/add')}
+                            onClick={() => navigate('/admin/employee/add')}
                         >
                             <Plus className='mr-2 h-4 w-4' />
                             Add Employee
