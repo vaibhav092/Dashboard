@@ -94,7 +94,7 @@ export default function EmployeesList() {
     const assignClient = async (employeeId, clientId) => {
         try {
             await updateDoc(doc(db, 'users', employeeId), {
-                assignedClient: clientId
+                assignedClient: clientId,
             });
 
             const clientRef = doc(db, 'clients', clientId);
@@ -102,17 +102,23 @@ export default function EmployeesList() {
             const currentEmployees = clientSnap.data().assignedEmployees || [];
 
             await updateDoc(clientRef, {
-                assignedEmployees: [...new Set([...currentEmployees, employeeId])]
+                assignedEmployees: [
+                    ...new Set([...currentEmployees, employeeId]),
+                ],
             });
 
-            setEmployees(employees.map(emp =>
-                emp.id === employeeId ? { ...emp, assignedClient: clientId } : emp
-            ));
+            setEmployees(
+                employees.map((emp) =>
+                    emp.id === employeeId
+                        ? { ...emp, assignedClient: clientId }
+                        : emp,
+                ),
+            );
 
-            toast.success("Client assigned successfully");
+            toast.success('Client assigned successfully');
         } catch (error) {
-            toast.error("Failed to assign client");
-            console.error("Error assigning client:", error); // Added for debugging
+            toast.error('Failed to assign client');
+            console.error('Error assigning client:', error); // Added for debugging
         }
     };
     if (loading) {
@@ -129,9 +135,7 @@ export default function EmployeesList() {
                 <CardHeader className='flex flex-row items-center justify-between'>
                     <CardTitle>Employee Management</CardTitle>
                     <div className='flex gap-2'>
-                        <Button
-                            onClick={() => navigate('/admin/employee/add')}
-                        >
+                        <Button onClick={() => navigate('/admin/employee/add')}>
                             <Plus className='mr-2 h-4 w-4' />
                             Add Employee
                         </Button>
@@ -191,7 +195,14 @@ export default function EmployeesList() {
                                                     variant='outline'
                                                     size='sm'
                                                 >
-                                                    {employee.assignedClient ? clients.find(c => c.id === employee.assignedClient)?.name || employee.assignedClient : 'Assign Client'}
+                                                    {employee.assignedClient
+                                                        ? clients.find(
+                                                              (c) =>
+                                                                  c.id ===
+                                                                  employee.assignedClient,
+                                                          )?.name ||
+                                                          employee.assignedClient
+                                                        : 'Assign Client'}
                                                 </Button>
                                             </DropdownMenuTrigger>
                                             <DropdownMenuContent>

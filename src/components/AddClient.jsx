@@ -1,7 +1,13 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router'; 
-import { doc, setDoc, serverTimestamp, collection, Timestamp } from 'firebase/firestore';
-import { db } from '@/lib/Firebase'; 
+import { useNavigate } from 'react-router';
+import {
+    doc,
+    setDoc,
+    serverTimestamp,
+    collection,
+    Timestamp,
+} from 'firebase/firestore';
+import { db } from '@/lib/Firebase';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -32,21 +38,51 @@ export default function AddClient() {
 
     // Updated timezone options with country/continent/city context
     const timezoneOptions = [
-        { value: 'America/New_York', label: 'North America (USA) - New York (UTC-05:00)' },
-        { value: 'America/Los_Angeles', label: 'North America (USA) - Los Angeles (UTC-08:00)' },
-        { value: 'America/Chicago', label: 'North America (USA) - Chicago (UTC-06:00)' },
-        { value: 'America/Toronto', label: 'North America (Canada) - Toronto (UTC-05:00)' },
+        {
+            value: 'America/New_York',
+            label: 'North America (USA) - New York (UTC-05:00)',
+        },
+        {
+            value: 'America/Los_Angeles',
+            label: 'North America (USA) - Los Angeles (UTC-08:00)',
+        },
+        {
+            value: 'America/Chicago',
+            label: 'North America (USA) - Chicago (UTC-06:00)',
+        },
+        {
+            value: 'America/Toronto',
+            label: 'North America (Canada) - Toronto (UTC-05:00)',
+        },
         { value: 'Europe/London', label: 'Europe (UK) - London (UTC+00:00)' },
         { value: 'Europe/Paris', label: 'Europe (France) - Paris (UTC+01:00)' },
-        { value: 'Europe/Berlin', label: 'Europe (Germany) - Berlin (UTC+01:00)' },
+        {
+            value: 'Europe/Berlin',
+            label: 'Europe (Germany) - Berlin (UTC+01:00)',
+        },
         { value: 'Asia/Kolkata', label: 'Asia (India) - Kolkata (UTC+05:30)' },
         { value: 'Asia/Tokyo', label: 'Asia (Japan) - Tokyo (UTC+09:00)' },
-        { value: 'Asia/Shanghai', label: 'Asia (China) - Shanghai (UTC+08:00)' },
-        { value: 'Australia/Sydney', label: 'Australia (Australia) - Sydney (UTC+10:00)' },
+        {
+            value: 'Asia/Shanghai',
+            label: 'Asia (China) - Shanghai (UTC+08:00)',
+        },
+        {
+            value: 'Australia/Sydney',
+            label: 'Australia (Australia) - Sydney (UTC+10:00)',
+        },
         { value: 'Africa/Cairo', label: 'Africa (Egypt) - Cairo (UTC+02:00)' },
-        { value: 'Africa/Johannesburg', label: 'Africa (South Africa) - Johannesburg (UTC+02:00)' },
-        { value: 'South_America/Sao_Paulo', label: 'South America (Brazil) - Sao Paulo (UTC-03:00)' },
-        { value: 'Pacific/Auckland', label: 'Pacific (New Zealand) - Auckland (UTC+12:00)' },
+        {
+            value: 'Africa/Johannesburg',
+            label: 'Africa (South Africa) - Johannesburg (UTC+02:00)',
+        },
+        {
+            value: 'South_America/Sao_Paulo',
+            label: 'South America (Brazil) - Sao Paulo (UTC-03:00)',
+        },
+        {
+            value: 'Pacific/Auckland',
+            label: 'Pacific (New Zealand) - Auckland (UTC+12:00)',
+        },
         { value: 'UTC', label: 'Coordinated Universal Time (UTC±00:00)' }, // Generic UTC option
         // You can add more specific timezones as needed
     ];
@@ -225,7 +261,10 @@ export default function AddClient() {
                                     </SelectTrigger>
                                     <SelectContent>
                                         {timezoneOptions.map((tz) => (
-                                            <SelectItem key={tz.value} value={tz.value}>
+                                            <SelectItem
+                                                key={tz.value}
+                                                value={tz.value}
+                                            >
                                                 {tz.label}
                                             </SelectItem>
                                         ))}

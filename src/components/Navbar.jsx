@@ -99,6 +99,7 @@ function Navbar() {
                             <>
                                 <Button
                                     variant='ghost'
+                                    onClick={() => navigate('/profile')}
                                     className='flex items-center space-x-2 text-[#cbd5e1] hover:text-[#f8fafc] hover:bg-blue-800/20 transition-colors'
                                 >
                                     <User className='w-4 h-4' />
@@ -106,18 +107,19 @@ function Navbar() {
                                 </Button>
                                 <Button
                                     variant='ghost'
+                                    onClick={() => navigate('/work')}
                                     className='flex items-center space-x-2 text-[#cbd5e1] hover:text-[#f8fafc] hover:bg-blue-800/20 transition-colors'
                                 >
                                     <Clock className='w-4 h-4' />
                                     <span>Office Login</span>
                                 </Button>
-                                <Button
+                                {/* <Button
                                     variant='ghost'
                                     className='flex items-center space-x-2 text-[#cbd5e1] hover:text-[#f8fafc] hover:bg-blue-800/20 transition-colors'
                                 >
                                     <Target className='w-4 h-4' />
                                     <span>Get Tasks</span>
-                                </Button>
+                                </Button> */}
                                 <Button
                                     variant='ghost'
                                     className='flex items-center space-x-2 text-[#cbd5e1] hover:text-[#f8fafc] hover:bg-blue-800/20 transition-colors'

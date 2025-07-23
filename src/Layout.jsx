@@ -5,7 +5,9 @@ import { Outlet } from 'react-router';
 function Layout() {
     return (
         <div>
-            <Navbar />
+            <div className='fixed top-0 w-screen'>
+                <Navbar />
+            </div>
             <Outlet />
         </div>
     );

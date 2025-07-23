@@ -8,6 +8,8 @@ import AddEmployee from '@/components/AddExployee';
 import EmployeesList from '@/components/ExployeeList';
 import AddClient from './components/AddClient';
 import ClientsList from './components/ClientList';
+import EmployeeProfile from './components/EmployeeProfile';
+import OffliceLogin from './components/OffliceLogin';
 
 function App() {
     return (
@@ -25,6 +27,8 @@ function App() {
                         }
                     >
                         <Route index element={<Home />} />
+                        <Route path='profile' element={<EmployeeProfile />} />
+                        <Route path='work' element={<OffliceLogin/>}/>
                     </Route>
 
                     <Route

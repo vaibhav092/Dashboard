@@ -15,27 +15,27 @@ const Login = () => {
     const { assignRole } = useRole();
     const navigate = useNavigate();
 
-const handleLogin = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
+    const handleLogin = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        setError('');
 
-    try {
-        await signInWithEmailAndPassword(auth, email, password);
-        console.log("Firebase sign-in successful!"); // Add this
-        await setIsLogin(true);
-        console.log("setIsLogin(true) called!"); // Add this
-        assignRole(email);
-        console.log("assignRole called!"); // Add this
-        navigate('/');
-        console.log("navigate('/') called!"); // Add this
-    } catch (err) {
-        setError(err.message);
-        console.error('Login error:', err);
-    } finally {
-        setLoading(false);
-    }
-};
+        try {
+            await signInWithEmailAndPassword(auth, email, password);
+            console.log('Firebase sign-in successful!'); // Add this
+            await setIsLogin(true);
+            console.log('setIsLogin(true) called!'); // Add this
+            assignRole(email);
+            console.log('assignRole called!'); // Add this
+            navigate('/');
+            console.log("navigate('/') called!"); // Add this
+        } catch (err) {
+            setError(err.message);
+            console.error('Login error:', err);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     return (
         <div className='text-primary flex justify-center items-center h-screen'>
