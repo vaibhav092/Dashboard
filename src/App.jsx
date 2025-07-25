@@ -11,6 +11,7 @@ import ClientsList from './components/ClientList';
 import EmployeeProfile from './components/EmployeeProfile';
 import OffliceLogin from './components/OffliceLogin';
 import Report from './components/Report';
+import ViewProfile from './components/ViewProfile';
 
 function App() {
     return (
@@ -43,6 +44,7 @@ function App() {
                     >
                         <Route path='employee'>
                             <Route path='add' element={<AddEmployee />} />
+                            <Route path=':id' element={<ViewProfile />} />
                             <Route index element={<EmployeesList />} />
                         </Route>
                         <Route path='client'>

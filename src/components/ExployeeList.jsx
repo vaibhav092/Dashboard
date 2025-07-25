@@ -228,7 +228,7 @@ export default function EmployeesList() {
                                             size='sm'
                                             onClick={() =>
                                                 navigate(
-                                                    `/admin/employees/${employee.id}`,
+                                                    `/admin/employee/${employee.id}`,
                                                 )
                                             }
                                         >
