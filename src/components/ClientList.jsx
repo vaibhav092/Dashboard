@@ -112,73 +112,95 @@ export default function ClientsList() {
         }
     };
 
-const assignEmployee = async (clientId, employeeId) => {
-    try {
-        const clientRef = doc(db, 'clients', clientId);
-        const userRef = doc(db, 'users', employeeId);
-        
-        // Get current data
-        const [clientSnap, userSnap] = await Promise.all([
-            getDoc(clientRef),
-            getDoc(userRef)
-        ]);
-        
-        const currentEmployees = clientSnap.data().assignedEmployees || [];
-        const updatedAssignedEmployees = [...new Set([...currentEmployees, employeeId])];
+    const assignEmployee = async (clientId, employeeId) => {
+        try {
+            const clientRef = doc(db, 'clients', clientId);
+            const userRef = doc(db, 'users', employeeId);
 
-        // Update both documents in a batch
-        await Promise.all([
-            updateDoc(clientRef, {
-                assignedEmployees: updatedAssignedEmployees,
-            }),
-            updateDoc(userRef, {
-                companyName: clientSnap.data().name,
-            }, { merge: true })
-        ]);
+            // Get current data
+            const [clientSnap, userSnap] = await Promise.all([
+                getDoc(clientRef),
+                getDoc(userRef),
+            ]);
 
-        // Update local state
-        setClients(clients.map(client => 
-            client.id === clientId 
-                ? { ...client, assignedEmployees: updatedAssignedEmployees }
-                : client
-        ));
+            const currentEmployees = clientSnap.data().assignedEmployees || [];
+            const updatedAssignedEmployees = [
+                ...new Set([...currentEmployees, employeeId]),
+            ];
 
-        toast.success('Employee assigned successfully!');
-    } catch (error) {
-        toast.error(`Failed to assign employee: ${error.message}`);
-    }
-};
+            // Update both documents in a batch
+            await Promise.all([
+                updateDoc(clientRef, {
+                    assignedEmployees: updatedAssignedEmployees,
+                }),
+                updateDoc(
+                    userRef,
+                    {
+                        companyName: clientSnap.data().name,
+                    },
+                    { merge: true },
+                ),
+            ]);
 
-const removeEmployee = async (clientId, employeeId) => {
-    try {
-        const clientRef = doc(db, 'clients', clientId);
-        const userRef = doc(db, 'users', employeeId);
-        
-        const clientSnap = await getDoc(clientRef);
-        const currentEmployees = clientSnap.data().assignedEmployees || [];
-        const updatedAssignedEmployees = currentEmployees.filter(id => id !== employeeId);
+            // Update local state
+            setClients(
+                clients.map((client) =>
+                    client.id === clientId
+                        ? {
+                              ...client,
+                              assignedEmployees: updatedAssignedEmployees,
+                          }
+                        : client,
+                ),
+            );
 
-        // Update both documents
-        await Promise.all([
-            updateDoc(clientRef, {
-                assignedEmployees: updatedAssignedEmployees,
-            }),
-            updateDoc(userRef, {
-                companyName: null, // or empty string ''
-            }, { merge: true })
-        ]);
+            toast.success('Employee assigned successfully!');
+        } catch (error) {
+            toast.error(`Failed to assign employee: ${error.message}`);
+        }
+    };
 
-        setClients(clients.map(client => 
-            client.id === clientId 
-                ? { ...client, assignedEmployees: updatedAssignedEmployees }
-                : client
-        ));
+    const removeEmployee = async (clientId, employeeId) => {
+        try {
+            const clientRef = doc(db, 'clients', clientId);
+            const userRef = doc(db, 'users', employeeId);
 
-        toast.success('Employee removed successfully!');
-    } catch (error) {
-        toast.error(`Failed to remove employee: ${error.message}`);
-    }
-};
+            const clientSnap = await getDoc(clientRef);
+            const currentEmployees = clientSnap.data().assignedEmployees || [];
+            const updatedAssignedEmployees = currentEmployees.filter(
+                (id) => id !== employeeId,
+            );
+
+            // Update both documents
+            await Promise.all([
+                updateDoc(clientRef, {
+                    assignedEmployees: updatedAssignedEmployees,
+                }),
+                updateDoc(
+                    userRef,
+                    {
+                        companyName: null, // or empty string ''
+                    },
+                    { merge: true },
+                ),
+            ]);
+
+            setClients(
+                clients.map((client) =>
+                    client.id === clientId
+                        ? {
+                              ...client,
+                              assignedEmployees: updatedAssignedEmployees,
+                          }
+                        : client,
+                ),
+            );
+
+            toast.success('Employee removed successfully!');
+        } catch (error) {
+            toast.error(`Failed to remove employee: ${error.message}`);
+        }
+    };
 
     if (loading) {
         return (

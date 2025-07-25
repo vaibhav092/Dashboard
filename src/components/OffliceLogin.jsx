@@ -3,19 +3,22 @@ import { onAuthStateChanged } from 'firebase/auth';
 import {
     collection,
     query,
+    where,
     onSnapshot,
     addDoc,
     updateDoc,
     deleteDoc,
     doc,
     serverTimestamp,
+    getDocs,
+    orderBy,
+    limit,
+    writeBatch,
 } from 'firebase/firestore';
 import { useNavigate } from 'react-router';
-
-// --- Import your Firebase instances ---
 import { auth, db } from '@/lib/Firebase';
 
-// --- Import your shadcn/ui components ---
+// UI Components
 import { Button } from '@/components/ui/button';
 import {
     Card,
@@ -24,24 +27,26 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ExclamationTriangleIcon, TrashIcon, ExitIcon } from '@radix-ui/react-icons';
+import {
+    ExclamationTriangleIcon,
+    TrashIcon,
+    ExitIcon,
+} from '@radix-ui/react-icons';
 
 export default function OfficeLogin() {
     const navigate = useNavigate();
-    const [todos, setTodos] = useState([]);
-    const [completedTodos, setCompletedTodos] = useState([]);
-    const [newTodo, setNewTodo] = useState('');
+
+    const [tasks, setTasks] = useState([]);
+    const [newTask, setNewTask] = useState('');
     const [currentUser, setCurrentUser] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
-    const [workStartTime, setWorkStartTime] = useState(null);
     const [elapsedTime, setElapsedTime] = useState(0);
-    const [timerActive, setTimerActive] = useState(true);
+    const [timerActive, setTimerActive] = useState(false);
 
-    // Effect to get the current user
+    // Auth state listener
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (user) => {
             if (user) {
@@ -49,231 +54,355 @@ export default function OfficeLogin() {
                 startWorkSession(user.uid);
             } else {
                 setCurrentUser(null);
-                setLoading(false);
+                setTimerActive(false);
                 navigate('/login');
             }
         });
         return () => unsubscribe();
     }, [navigate]);
 
-    // Effect for the work timer
+    // Timer effect
     useEffect(() => {
         let interval;
-        if (timerActive && workStartTime) {
-            interval = setInterval(() => {
-                setElapsedTime(Math.floor((new Date() - workStartTime) / 1000));
+        if (timerActive && currentUser) {
+            interval = setInterval(async () => {
+                try {
+                    const workSessionsRef = collection(
+                        db,
+                        'users',
+                        currentUser.uid,
+                        'workSessions',
+                    );
+                    const q = query(
+                        workSessionsRef,
+                        where('status', '==', 'active'),
+                        limit(1),
+                    );
+                    const querySnapshot = await getDocs(q);
+
+                    if (!querySnapshot.empty) {
+                        const sessionData = querySnapshot.docs[0].data();
+                        if (sessionData.startTime) {
+                            const startTime = sessionData.startTime.toDate();
+                            setElapsedTime(
+                                Math.floor((new Date() - startTime) / 1000),
+                            );
+                        }
+                    }
+                } catch (err) {
+                    console.error('Error fetching active session:', err);
+                }
             }, 1000);
         }
         return () => clearInterval(interval);
-    }, [timerActive, workStartTime]);
+    }, [timerActive, currentUser]);
 
-    // Effect to fetch todos for the current user
+    // Fetch today's tasks from doneWork
     useEffect(() => {
-        if (!currentUser) return;
-
-        const todosCollectionRef = collection(db, 'users', currentUser.uid, 'todos');
-        const q = query(todosCollectionRef);
-
-        const unsubscribe = onSnapshot(q, (querySnapshot) => {
-            const todosData = [];
-            const completedData = [];
-            querySnapshot.forEach((doc) => {
-                const todo = { ...doc.data(), id: doc.id };
-                todosData.push(todo);
-                if (todo.completed) {
-                    completedData.push(todo);
-                }
-            });
-            todosData.sort((a, b) => (a.createdAt?.seconds > b.createdAt?.seconds) ? 1 : -1);
-            setTodos(todosData);
-            setCompletedTodos(completedData);
+        if (!currentUser) {
             setLoading(false);
-        }, (err) => {
-            console.error("Error fetching todos:", err);
-            setError("Failed to fetch tasks. Please try again.");
-            setLoading(false);
-        });
+            return;
+        }
+
+        setLoading(true);
+        const doneWorkRef = collection(
+            db,
+            'users',
+            currentUser.uid,
+            'doneWork',
+        );
+        const q = query(doneWorkRef, orderBy('createdAt', 'desc'));
+
+        const unsubscribe = onSnapshot(
+            q,
+            (querySnapshot) => {
+                const tasksData = [];
+                querySnapshot.forEach((doc) => {
+                    tasksData.push({ ...doc.data(), id: doc.id });
+                });
+
+                const today = new Date().toISOString().split('T')[0];
+                const todayTasks = tasksData.filter((task) => {
+                    const createdAtDate = task.createdAt
+                        ?.toDate?.()
+                        .toISOString()
+                        .split('T')[0];
+                    return createdAtDate === today;
+                });
+
+                setTasks(todayTasks);
+                setLoading(false);
+            },
+            (err) => {
+                console.error('Error fetching tasks:', err);
+                setError('Failed to fetch tasks. Please try again.');
+                setLoading(false);
+            },
+        );
 
         return () => unsubscribe();
     }, [currentUser]);
 
     const startWorkSession = async (userId) => {
         const startTime = new Date();
-        setWorkStartTime(startTime);
         setTimerActive(true);
-        
+
         try {
-            const workSessionsRef = collection(db, 'users', userId, 'workSessions');
-            await addDoc(workSessionsRef, {
-                startTime: startTime,
-                status: 'active',
-                tasksCompleted: 0,
-            });
+            const workSessionsRef = collection(
+                db,
+                'users',
+                userId,
+                'workSessions',
+            );
+            const q = query(
+                workSessionsRef,
+                where('status', '==', 'active'),
+                limit(1),
+            );
+            const existingSession = await getDocs(q);
+
+            if (existingSession.empty) {
+                await addDoc(workSessionsRef, {
+                    startTime: startTime,
+                    status: 'active',
+                    assignedClient: currentUser?.assignedClient || null,
+                });
+            }
         } catch (err) {
-            console.error("Error starting work session:", err);
+            console.error('Error starting work session:', err);
+            setError('Failed to start work session.');
         }
     };
 
     const handleCheckout = async () => {
+        if (
+            !window.confirm(
+                'Are you sure you want to checkout? This will end your current work session.',
+            )
+        ) {
+            return;
+        }
+
         if (!currentUser) return;
-        
+        setTimerActive(false);
+
         try {
-            // Update the active work session
-            const workSessionsRef = collection(db, 'users', currentUser.uid, 'workSessions');
-            const q = query(workSessionsRef, orderBy('startTime', 'desc'), limit(1));
+            const today = new Date().toISOString().split('T')[0];
+            const hoursWorked = (elapsedTime / 3600).toFixed(2);
+            const completedTasks = tasks.filter((task) => task.completed);
+            const batch = writeBatch(db);
+
+            // Update work session
+            const workSessionsRef = collection(
+                db,
+                'users',
+                currentUser.uid,
+                'workSessions',
+            );
+            const q = query(
+                workSessionsRef,
+                where('status', '==', 'active'),
+                orderBy('startTime', 'desc'),
+                limit(1),
+            );
             const querySnapshot = await getDocs(q);
-            
+
             if (!querySnapshot.empty) {
-                const latestSession = querySnapshot.docs[0];
-                await updateDoc(latestSession.ref, {
-                    endTime: new Date(),
-                    duration: elapsedTime,
-                    tasksCompleted: completedTodos.length,
+                const sessionDoc = querySnapshot.docs[0];
+                batch.update(sessionDoc.ref, {
+                    endTime: serverTimestamp(),
+                    durationSeconds: elapsedTime,
+                    tasksCompletedCount: completedTasks.length,
                     status: 'completed',
                 });
             }
 
-            setTimerActive(false);
+            // Save work hours
+            const dailySummaryRef = doc(
+                db,
+                'users',
+                currentUser.uid,
+                'workHours',
+                today,
+            );
+            batch.set(
+                dailySummaryRef,
+                {
+                    hours: hoursWorked,
+                    date: today,
+                    clientId: currentUser.assignedClient || null,
+                },
+                { merge: true },
+            );
+
+            await batch.commit();
             navigate('/report');
         } catch (err) {
-            console.error("Error during checkout:", err);
-            setError("Failed to complete checkout. Please try again.");
+            console.error('Error during checkout:', err);
+            setError(`Checkout failed: ${err.message}`);
         }
     };
 
-    const handleAddTodo = async (e) => {
+    const handleAddTask = async (e) => {
         e.preventDefault();
-        if (newTodo.trim() === '' || !currentUser) return;
+        if (newTask.trim() === '' || !currentUser) return;
 
         try {
-            const todosCollectionRef = collection(db, 'users', currentUser.uid, 'todos');
-            await addDoc(todosCollectionRef, {
-                text: newTodo.trim(),
+            const doneWorkRef = collection(
+                db,
+                'users',
+                currentUser.uid,
+                'doneWork',
+            );
+            await addDoc(doneWorkRef, {
+                text: newTask.trim(),
                 completed: false,
                 createdAt: serverTimestamp(),
+                clientId: currentUser.assignedClient || null,
             });
-            setNewTodo('');
+            setNewTask('');
         } catch (err) {
-            console.error("Error adding todo:", err);
-            setError("Failed to add task.");
+            console.error('Error adding task:', err);
+            setError('Failed to add task.');
         }
     };
 
-    const handleToggleTodo = async (todoId, currentStatus) => {
+    const handleToggleTask = async (taskId, currentStatus) => {
         if (!currentUser) return;
-        const todoDocRef = doc(db, 'users', currentUser.uid, 'todos', todoId);
+        const taskRef = doc(db, 'users', currentUser.uid, 'doneWork', taskId);
         try {
-            await updateDoc(todoDocRef, {
+            await updateDoc(taskRef, {
                 completed: !currentStatus,
             });
-            
-            if (!currentStatus) {
-                const doneWorkRef = collection(db, 'users', currentUser.uid, 'doneWork');
-                const todo = todos.find(t => t.id === todoId);
-                if (todo) {
-                    await addDoc(doneWorkRef, {
-                        task: todo.text,
-                        completedAt: serverTimestamp(),
-                        workSessionDuration: elapsedTime,
-                    });
-                }
-            }
         } catch (err) {
-            console.error("Error updating todo:", err);
-            setError("Failed to update task status.");
+            console.error('Error updating task:', err);
+            setError('Failed to update task status.');
         }
     };
 
-    const handleDeleteTodo = async (todoId) => {
+    const handleDeleteTask = async (taskId) => {
         if (!currentUser) return;
-        const todoDocRef = doc(db, 'users', currentUser.uid, 'todos', todoId);
+        const taskRef = doc(db, 'users', currentUser.uid, 'doneWork', taskId);
         try {
-            await deleteDoc(todoDocRef);
+            await deleteDoc(taskRef);
         } catch (err) {
-            console.error("Error deleting todo:", err);
-            setError("Failed to delete task.");
+            console.error('Error deleting task:', err);
+            setError('Failed to delete task.');
         }
+    };
+
+    const formatTime = (seconds) => {
+        const hrs = Math.floor(seconds / 3600);
+        const mins = Math.floor((seconds % 3600) / 60);
+        const secs = seconds % 60;
+        return `${hrs.toString().padStart(2, '0')}:${mins
+            .toString()
+            .padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     };
 
     return (
-        <div className="flex justify-center p-4 font-sans">
-            <Card className="w-full max-w-2xl bg-black/20 backdrop-blur-lg border border-white/20 text-white mt-16">
-                <CardHeader className="text-center">
-                    <div className="flex justify-between items-center">
-                        <div className="flex-1 text-left">
-                            <Button 
-                                variant="ghost" 
+        <div className='flex justify-center p-4 min-h-screen'>
+            <Card className='w-full max-w-2xl bg-black/20 backdrop-blur-lg border border-white/20 text-white mt-16 h-fit'>
+                <CardHeader className='text-center'>
+                    <div className='flex justify-between items-center'>
+                        <div className='flex-1 text-left'>
+                            <Button
+                                variant='ghost'
                                 onClick={handleCheckout}
-                                className="text-gray-300 hover:text-white"
+                                className='text-red-400 hover:text-white hover:bg-red-500/20'
                             >
-                                <ExitIcon className="mr-2 h-4 w-4" />
-                                Checkout
+                                <ExitIcon className='mr-2 h-4 w-4' />
+                                Checkout ({formatTime(elapsedTime)})
                             </Button>
                         </div>
-                        <div className="flex-1">
-                            <CardTitle className="text-3xl">My Daily Tasks</CardTitle>
-                            <CardDescription className="text-gray-300">Manage your tasks for the day.</CardDescription>
+                        <div className='flex-1'>
+                            <CardTitle className='text-3xl'>
+                                Daily Tasks
+                            </CardTitle>
                         </div>
-                        <div className="flex-1"></div> {/* Empty div for balance */}
+                        <div className='flex-1'></div>
                     </div>
                 </CardHeader>
                 <CardContent>
                     {error && (
-                        <Alert variant="destructive" className="bg-red-900/50 text-red-300 border-red-500/50 mb-4">
-                            <ExclamationTriangleIcon className="h-4 w-4" />
+                        <Alert
+                            variant='destructive'
+                            className='bg-red-900/50 text-red-300 border-red-500/50 mb-4'
+                        >
+                            <ExclamationTriangleIcon className='h-4 w-4' />
                             <AlertDescription>{error}</AlertDescription>
                         </Alert>
                     )}
 
-                    <form onSubmit={handleAddTodo} className="flex gap-2 mb-6">
-                        <Input
-                            type="text"
-                            value={newTodo}
-                            onChange={(e) => setNewTodo(e.target.value)}
-                            placeholder="Add a new task..."
-                            className="bg-white/10 border-gray-600 placeholder:text-gray-400"
+                    <form onSubmit={handleAddTask} className='flex gap-2 mb-6'>
+                        <textarea
+                            value={newTask}
+                            onChange={(e) => setNewTask(e.target.value)}
+                            placeholder='Describe your task...'
+                            rows={3}
+                            className='w-full rounded-md bg-white/10 border border-gray-600 p-2 placeholder:text-gray-400 focus:ring-indigo-500 text-white resize-none'
                         />
-                        <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white">Add Task</Button>
+                        <Button
+                            type='submit'
+                            className='bg-indigo-600 hover:bg-indigo-700 text-white'
+                        >
+                            Add Task
+                        </Button>
                     </form>
 
                     {loading ? (
-                        <div className="text-center text-gray-300">Loading tasks...</div>
+                        <div className='text-center text-gray-300 py-4'>
+                            Loading tasks...
+                        </div>
                     ) : (
-                        <div className="space-y-3">
-                            {todos.length > 0 ? (
-                                todos.map((todo) => (
+                        <div className='space-y-3'>
+                            {tasks.length > 0 ? (
+                                tasks.map((task) => (
                                     <div
-                                        key={todo.id}
-                                        className={`flex items-center p-3 rounded-md transition-colors ${
-                                            todo.completed ? 'bg-green-500/20' : 'bg-gray-500/20'
+                                        key={task.id}
+                                        className={`flex items-center p-3 rounded-md transition-all duration-300 ${
+                                            task.completed
+                                                ? 'bg-green-500/20 opacity-60'
+                                                : 'bg-gray-500/20'
                                         }`}
                                     >
                                         <Checkbox
-                                            id={`todo-${todo.id}`}
-                                            checked={todo.completed}
-                                            onCheckedChange={() => handleToggleTodo(todo.id, todo.completed)}
-                                            className="mr-3 border-gray-400 data-[state=checked]:bg-green-500"
+                                            id={`task-${task.id}`}
+                                            checked={task.completed}
+                                            onCheckedChange={() =>
+                                                handleToggleTask(
+                                                    task.id,
+                                                    task.completed,
+                                                )
+                                            }
+                                            className='mr-3 border-gray-400 data-[state=checked]:bg-green-500'
                                         />
                                         <label
-                                            htmlFor={`todo-${todo.id}`}
+                                            htmlFor={`task-${task.id}`}
                                             className={`flex-grow cursor-pointer ${
-                                                todo.completed ? 'line-through text-gray-400' : ''
+                                                task.completed
+                                                    ? 'line-through text-gray-400'
+                                                    : ''
                                             }`}
                                         >
-                                            {todo.text}
+                                            {task.text}
                                         </label>
                                         <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            onClick={() => handleDeleteTodo(todo.id)}
-                                            className="text-gray-400 hover:bg-red-500/20 hover:text-red-300"
+                                            variant='ghost'
+                                            size='icon'
+                                            onClick={() =>
+                                                handleDeleteTask(task.id)
+                                            }
+                                            className='text-gray-400 hover:bg-red-500/20 hover:text-red-300'
                                         >
-                                            <TrashIcon className="h-4 w-4" />
+                                            <TrashIcon className='h-4 w-4' />
                                         </Button>
                                     </div>
                                 ))
                             ) : (
-                                <p className="text-center text-gray-400 py-4">You have no tasks. Well done!</p>
+                                <p className='text-center text-gray-400 py-4'>
+                                    No tasks for today. Add one to get started!
+                                </p>
                             )}
                         </div>
                     )}

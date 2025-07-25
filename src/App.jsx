@@ -10,6 +10,7 @@ import AddClient from './components/AddClient';
 import ClientsList from './components/ClientList';
 import EmployeeProfile from './components/EmployeeProfile';
 import OffliceLogin from './components/OffliceLogin';
+import Report from './components/Report';
 
 function App() {
     return (
@@ -28,7 +29,8 @@ function App() {
                     >
                         <Route index element={<Home />} />
                         <Route path='profile' element={<EmployeeProfile />} />
-                        <Route path='work' element={<OffliceLogin/>}/>
+                        <Route path='work' element={<OffliceLogin />} />
+                        <Route path='report' element={<Report />} />
                     </Route>
 
                     <Route
