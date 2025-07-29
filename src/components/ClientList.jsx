@@ -8,6 +8,7 @@ import {
     updateDoc,
     doc,
     getDoc,
+    onSnapshot,
 } from 'firebase/firestore';
 import { db } from '@/lib/Firebase';
 import { Button } from '@/components/ui/button';
@@ -45,38 +46,54 @@ export default function ClientsList() {
     const navigate = useNavigate();
 
     useEffect(() => {
-        const fetchData = async () => {
-            try {
-                const [clientsSnap, employeesSnap] = await Promise.all([
-                    getDocs(
-                        query(
-                            collection(db, 'clients'),
-                            orderBy('createdAt', 'desc'),
-                        ),
-                    ),
-                    getDocs(query(collection(db, 'users'))),
-                ]);
-
-                setClients(
-                    clientsSnap.docs.map((doc) => ({
-                        id: doc.id,
-                        ...doc.data(),
-                    })),
-                );
-                setEmployees(
-                    employeesSnap.docs.map((doc) => ({
-                        id: doc.id,
-                        name: doc.data().name,
-                    })),
-                );
-            } catch (error) {
-                toast.error('Failed to load data');
-            } finally {
-                setLoading(false);
+        // Set up real-time listeners for both collections
+        const unsubscribeClients = onSnapshot(
+            query(collection(db, 'clients'), orderBy('createdAt', 'desc')),
+            (snapshot) => {
+                const fetchedClients = snapshot.docs.map((doc) => ({
+                    id: doc.id,
+                    ...doc.data(),
+                }));
+                setClients(fetchedClients);
+                console.log('Clients updated:', fetchedClients);
+            },
+            (error) => {
+                console.error('Error fetching clients:', error);
+                toast.error('Failed to load clients');
             }
-        };
+        );
 
-        fetchData();
+        const unsubscribeEmployees = onSnapshot(
+            query(collection(db, 'users')),
+            (snapshot) => {
+                const fetchedEmployees = snapshot.docs.map((doc) => ({
+                    id: doc.id,
+                    name: doc.data().name,
+                    email: doc.data().email,
+                    assignedClient: doc.data().assignedClient,
+                }));
+                setEmployees(fetchedEmployees);
+                console.log('Employees updated:', fetchedEmployees);
+            },
+            (error) => {
+                console.error('Error fetching employees:', error);
+                toast.error('Failed to load employees');
+            }
+        );
+
+        // Use a timeout to ensure loading state is properly managed
+        const timeoutId = setTimeout(() => {
+            setLoading(false);
+        }, 3000); // Fallback timeout
+
+        setLoading(false); // Set loading to false immediately since we're using real-time updates
+
+        // Cleanup listeners on unmount
+        return () => {
+            unsubscribeClients();
+            unsubscribeEmployees();
+            clearTimeout(timeoutId);
+        };
     }, []);
 
     const handleClientClick = (client) => {
@@ -123,39 +140,36 @@ export default function ClientsList() {
                 getDoc(userRef),
             ]);
 
+            if (!clientSnap.exists()) {
+                toast.error('Client not found');
+                return;
+            }
+
+            if (!userSnap.exists()) {
+                toast.error('Employee not found');
+                return;
+            }
+
             const currentEmployees = clientSnap.data().assignedEmployees || [];
             const updatedAssignedEmployees = [
                 ...new Set([...currentEmployees, employeeId]),
             ];
 
-            // Update both documents in a batch
+            // Update both documents
             await Promise.all([
                 updateDoc(clientRef, {
                     assignedEmployees: updatedAssignedEmployees,
                 }),
-                updateDoc(
-                    userRef,
-                    {
-                        companyName: clientSnap.data().name,
-                    },
-                    { merge: true },
-                ),
+                updateDoc(userRef, {
+                    assignedClient: clientId, // Also update the employee's assigned client
+                    companyName: clientSnap.data().name, // Update company name to match client name
+                })
             ]);
 
-            // Update local state
-            setClients(
-                clients.map((client) =>
-                    client.id === clientId
-                        ? {
-                              ...client,
-                              assignedEmployees: updatedAssignedEmployees,
-                          }
-                        : client,
-                ),
-            );
-
             toast.success('Employee assigned successfully!');
+            // State will be updated automatically via the real-time listeners
         } catch (error) {
+            console.error('Error assigning employee:', error);
             toast.error(`Failed to assign employee: ${error.message}`);
         }
     };
@@ -166,6 +180,11 @@ export default function ClientsList() {
             const userRef = doc(db, 'users', employeeId);
 
             const clientSnap = await getDoc(clientRef);
+            if (!clientSnap.exists()) {
+                toast.error('Client not found');
+                return;
+            }
+
             const currentEmployees = clientSnap.data().assignedEmployees || [];
             const updatedAssignedEmployees = currentEmployees.filter(
                 (id) => id !== employeeId,
@@ -176,30 +195,24 @@ export default function ClientsList() {
                 updateDoc(clientRef, {
                     assignedEmployees: updatedAssignedEmployees,
                 }),
-                updateDoc(
-                    userRef,
-                    {
-                        companyName: null, // or empty string ''
-                    },
-                    { merge: true },
-                ),
+                updateDoc(userRef, {
+                    assignedClient: null, // Remove the client assignment from employee
+                    companyName: null, // Remove company name as well
+                })
             ]);
 
-            setClients(
-                clients.map((client) =>
-                    client.id === clientId
-                        ? {
-                              ...client,
-                              assignedEmployees: updatedAssignedEmployees,
-                          }
-                        : client,
-                ),
-            );
-
             toast.success('Employee removed successfully!');
+            // State will be updated automatically via the real-time listeners
         } catch (error) {
+            console.error('Error removing employee:', error);
             toast.error(`Failed to remove employee: ${error.message}`);
         }
+    };
+
+    // Helper function to check if employee is already assigned to another client
+    const isEmployeeAssignedToOtherClient = (employeeId, currentClientId) => {
+        const employee = employees.find(emp => emp.id === employeeId);
+        return employee?.assignedClient && employee.assignedClient !== currentClientId;
     };
 
     if (loading) {
@@ -224,6 +237,13 @@ export default function ClientsList() {
                         >
                             <Plus className='mr-2 h-4 w-4' /> Add Client
                         </Button>
+                        <Button
+                            variant='outline'
+                            onClick={() => navigate('/admin/employee')}
+                        >
+                            <UserPlus className='mr-2 h-4 w-4' />
+                            Manage Employees
+                        </Button>
                     </div>
                 </CardHeader>
                 <CardContent className='p-6'>
@@ -244,7 +264,10 @@ export default function ClientsList() {
                                         className='border border-gray-200 rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-all duration-300 ease-in-out transform hover:-translate-y-1 bg-white flex flex-col'
                                     >
                                         <CardHeader className='pb-3 bg-gray-50 border-b border-gray-200 flex-grow'>
-                                            <CardTitle className='text-lg font-bold text-gray-900 truncate'>
+                                            <CardTitle 
+                                                className='text-lg font-bold text-gray-900 truncate cursor-pointer hover:text-blue-600'
+                                                onClick={() => handleClientClick(client)}
+                                            >
                                                 {client.name}
                                             </CardTitle>
                                         </CardHeader>
@@ -330,29 +353,34 @@ export default function ClientsList() {
                                                         </DropdownMenuItem>
                                                     ) : (
                                                         <>
-                                                            {employees.map(
-                                                                (employee) => (
-                                                                    <DropdownMenuItem
-                                                                        key={
-                                                                            employee.id
-                                                                        }
-                                                                        onClick={() =>
-                                                                            assignEmployee(
-                                                                                client.id,
-                                                                                employee.id,
-                                                                            )
-                                                                        }
-                                                                        disabled={client.assignedEmployees?.includes(
-                                                                            employee.id,
-                                                                        )}
-                                                                    >
-                                                                        <UserPlus className='mr-2 h-4 w-4' />{' '}
-                                                                        Assign{' '}
-                                                                        {
-                                                                            employee.name
-                                                                        }
-                                                                    </DropdownMenuItem>
-                                                                ),
+                                                            {employees
+                                                                .filter(employee => 
+                                                                    !client.assignedEmployees?.includes(employee.id)
+                                                                )
+                                                                .map(
+                                                                (employee) => {
+                                                                    const isAssignedElsewhere = isEmployeeAssignedToOtherClient(employee.id, client.id);
+                                                                    return (
+                                                                        <DropdownMenuItem
+                                                                            key={employee.id}
+                                                                            onClick={() =>
+                                                                                assignEmployee(
+                                                                                    client.id,
+                                                                                    employee.id,
+                                                                                )
+                                                                            }
+                                                                            disabled={isAssignedElsewhere}
+                                                                        >
+                                                                            <UserPlus className='mr-2 h-4 w-4' />{' '}
+                                                                            Assign {employee.name}
+                                                                            {isAssignedElsewhere && (
+                                                                                <span className="text-xs text-gray-500 ml-2">
+                                                                                    (Already assigned)
+                                                                                </span>
+                                                                            )}
+                                                                        </DropdownMenuItem>
+                                                                    );
+                                                                }
                                                             )}
                                                             {client.assignedEmployees &&
                                                                 client
