@@ -49,19 +49,30 @@ export default function EmployeesList() {
                 const clientsQuery = query(collection(db, 'clients'));
                 const clientsSnapshot = await getDocs(clientsQuery);
 
-                setEmployees(
-                    employeesSnapshot.docs.map((doc) => ({
-                        id: doc.id,
-                        ...doc.data(),
-                    })),
-                );
+                const fetchedEmployees = employeesSnapshot.docs.map((doc) => ({
+                    id: doc.id,
+                    ...doc.data(),
+                }));
 
-                setClients(
-                    clientsSnapshot.docs.map((doc) => ({
-                        id: doc.id,
-                        ...doc.data(),
-                    })),
-                );
+                const fetchedClients = clientsSnapshot.docs.map((doc) => ({
+                    id: doc.id,
+                    ...doc.data(),
+                }));
+
+                // Debug logging
+                console.log('Fetched clients:', fetchedClients);
+                console.log('Fetched employees:', fetchedEmployees);
+                console.log('Employee assigned client IDs:', fetchedEmployees.map(emp => ({
+                    name: emp.name,
+                    assignedClient: emp.assignedClient
+                })));
+                
+                // Check specific client
+                const specificClient = fetchedClients.find(c => c.id === 'KYUgFp5jUoomyzqegmwd');
+                console.log('Specific client KYUgFp5jUoomyzqegmwd:', specificClient);
+
+                setEmployees(fetchedEmployees);
+                setClients(fetchedClients);
             } catch (error) {
                 console.error('Error fetching data:', error);
                 toast.error('Failed to load data');
@@ -93,12 +104,19 @@ export default function EmployeesList() {
 
     const assignClient = async (employeeId, clientId) => {
         try {
+            // First, verify the client exists
+            const clientRef = doc(db, 'clients', clientId);
+            const clientSnap = await getDoc(clientRef);
+            
+            if (!clientSnap.exists()) {
+                toast.error('Client not found');
+                return;
+            }
+
             await updateDoc(doc(db, 'users', employeeId), {
                 assignedClient: clientId,
             });
 
-            const clientRef = doc(db, 'clients', clientId);
-            const clientSnap = await getDoc(clientRef);
             const currentEmployees = clientSnap.data().assignedEmployees || [];
 
             await updateDoc(clientRef, {
@@ -107,20 +125,44 @@ export default function EmployeesList() {
                 ],
             });
 
+            // Update local state with the actual client data
             setEmployees(
                 employees.map((emp) =>
                     emp.id === employeeId
                         ? { ...emp, assignedClient: clientId }
                         : emp,
-                ),
+                )
             );
+
+            // Also update the clients state if needed
+            const updatedClient = { id: clientSnap.id, ...clientSnap.data() };
+            setClients(clients.map(c => c.id === clientId ? updatedClient : c));
 
             toast.success('Client assigned successfully');
         } catch (error) {
             toast.error('Failed to assign client');
-            console.error('Error assigning client:', error); // Added for debugging
+            console.error('Error assigning client:', error);
         }
     };
+
+    // Helper function to get client display name
+    const getClientDisplayName = (assignedClientId) => {
+        if (!assignedClientId) return 'Assign Client';
+        
+        const assignedClient = clients.find((c) => c.id === assignedClientId);
+        
+        console.log(`Looking for client ID: ${assignedClientId}`);
+        console.log('Found client:', assignedClient);
+        
+        if (assignedClient) {
+            // Priority: companyName > name > fallback
+            return assignedClient.companyName || assignedClient.name || 'Unnamed Client';
+        } else {
+            // Client not found in the fetched clients
+            return `Client Not Found (${assignedClientId.substring(0, 8)}...)`;
+        }
+    };
+
     if (loading) {
         return (
             <div className='flex items-center justify-center h-64'>
@@ -195,30 +237,31 @@ export default function EmployeesList() {
                                                     variant='outline'
                                                     size='sm'
                                                 >
-                                                    {employee.assignedClient
-                                                        ? clients.find(
-                                                              (c) =>
-                                                                  c.id ===
-                                                                  employee.assignedClient,
-                                                          )?.name ||
-                                                          employee.assignedClient
-                                                        : 'Assign Client'}
+                                                    {getClientDisplayName(employee.assignedClient)}
                                                 </Button>
                                             </DropdownMenuTrigger>
                                             <DropdownMenuContent>
-                                                {clients.map((client) => (
-                                                    <DropdownMenuItem
-                                                        key={client.id}
-                                                        onClick={() =>
-                                                            assignClient(
-                                                                employee.id,
-                                                                client.id,
-                                                            )
-                                                        }
-                                                    >
-                                                        {client.name}
+                                                {clients.length > 0 ? (
+                                                    clients.map((client) => (
+                                                        <DropdownMenuItem
+                                                            key={client.id}
+                                                            onClick={() =>
+                                                                assignClient(
+                                                                    employee.id,
+                                                                    client.id,
+                                                                )
+                                                            }
+                                                        >
+                                                            {client.companyName ||
+                                                                client.name ||
+                                                                `Client ${client.id.substring(0, 8)}...`}
+                                                        </DropdownMenuItem>
+                                                    ))
+                                                ) : (
+                                                    <DropdownMenuItem disabled>
+                                                        No clients available
                                                     </DropdownMenuItem>
-                                                ))}
+                                                )}
                                             </DropdownMenuContent>
                                         </DropdownMenu>
                                     </TableCell>

@@ -94,9 +94,15 @@ export default function Report() {
 
                 // 4. Fetch work hours from workHours collection for today
                 const today = new Date().toISOString().split('T')[0]; // Format: YYYY-MM-DD
-                const workHoursRef = doc(db, 'users', user.uid, 'workHours', today);
+                const workHoursRef = doc(
+                    db,
+                    'users',
+                    user.uid,
+                    'workHours',
+                    today,
+                );
                 const workHoursSnap = await getDoc(workHoursRef);
-                
+
                 let totalWorkHours = 0;
                 if (workHoursSnap.exists()) {
                     const workHoursData = workHoursSnap.data();
@@ -105,7 +111,6 @@ export default function Report() {
                 }
 
                 setTotalHours(totalWorkHours);
-
             } catch (error) {
                 console.error('Error fetching report:', error);
                 setTaskError('Something went wrong');
@@ -164,10 +169,12 @@ export default function Report() {
             generatePDF(text);
         } catch (error) {
             console.error('Error generating report:', error);
-            
+
             // More specific error handling
             if (error.message.includes('404')) {
-                alert('AI model not found. Please check your API configuration.');
+                alert(
+                    'AI model not found. Please check your API configuration.',
+                );
             } else if (error.message.includes('API_KEY')) {
                 alert('Invalid API key. Please check your Gemini API key.');
             } else {
@@ -190,13 +197,13 @@ export default function Report() {
             // Helper function to render a line with mixed bold/regular text
             const renderMixedLine = (doc, parts, startX, y) => {
                 let currentX = startX;
-                
-                parts.forEach(part => {
+
+                parts.forEach((part) => {
                     if (part.text.trim()) {
                         doc.setFont('helvetica', part.bold ? 'bold' : 'normal');
                         doc.text(part.text, currentX, y);
                         currentX += doc.getTextWidth(part.text);
-                        
+
                         // Add space if not the last part and text doesn't end with space
                         if (!part.text.endsWith(' ')) {
                             currentX += doc.getTextWidth(' ');
@@ -218,12 +225,14 @@ export default function Report() {
             // Add header with company branding
             doc.setFillColor(41, 128, 185); // Professional blue
             doc.rect(0, 0, pageWidth, 35, 'F');
-            
+
             // Title
             doc.setTextColor(255, 255, 255);
             doc.setFontSize(24);
             doc.setFont('helvetica', 'bold');
-            doc.text('DAILY WORK REPORT', pageWidth / 2, 20, { align: 'center' });
+            doc.text('DAILY WORK REPORT', pageWidth / 2, 20, {
+                align: 'center',
+            });
 
             // Reset text color
             doc.setTextColor(0, 0, 0);
@@ -243,18 +252,26 @@ export default function Report() {
             doc.text('Total Hours:', margin + 5, yPosition + 19);
 
             doc.setFont('helvetica', 'normal');
-            doc.text(new Date().toLocaleDateString('en-US', { 
-                weekday: 'long', 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric' 
-            }), margin + 25, yPosition + 5);
+            doc.text(
+                new Date().toLocaleDateString('en-US', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                }),
+                margin + 25,
+                yPosition + 5,
+            );
             doc.text(clientName, margin + 25, yPosition + 12);
-            
+
             // Highlight total hours
             doc.setFont('helvetica', 'bold');
             doc.setTextColor(41, 128, 185);
-            doc.text(`${totalHours.toFixed(2)} hours`, margin + 35, yPosition + 19);
+            doc.text(
+                `${totalHours.toFixed(2)} hours`,
+                margin + 35,
+                yPosition + 19,
+            );
             doc.setTextColor(0, 0, 0);
             doc.setFont('helvetica', 'normal');
 
@@ -262,7 +279,7 @@ export default function Report() {
 
             // Process markdown content with better formatting
             const lines = markdownContent.split('\n');
-            
+
             lines.forEach((line, index) => {
                 const trimmedLine = line.trim();
                 if (!trimmedLine) {
@@ -274,189 +291,223 @@ export default function Report() {
                     // Main heading
                     checkPageBreak(20);
                     yPosition += 8;
-                    
+
                     // Add separator line above heading
                     doc.setDrawColor(41, 128, 185);
                     doc.setLineWidth(1);
-                    doc.line(margin, yPosition - 3, pageWidth - margin, yPosition - 3);
-                    
+                    doc.line(
+                        margin,
+                        yPosition - 3,
+                        pageWidth - margin,
+                        yPosition - 3,
+                    );
+
                     doc.setFontSize(16);
                     doc.setFont('helvetica', 'bold');
                     doc.setTextColor(41, 128, 185);
                     doc.text(trimmedLine.substring(2), margin, yPosition + 5);
-                    
+
                     doc.setTextColor(0, 0, 0);
                     yPosition += 15;
-                    
                 } else if (trimmedLine.startsWith('## ')) {
                     // Subheading
                     checkPageBreak(15);
                     yPosition += 5;
-                    
+
                     doc.setFontSize(14);
                     doc.setFont('helvetica', 'bold');
                     doc.setTextColor(52, 73, 94);
                     doc.text(trimmedLine.substring(3), margin, yPosition);
-                    
+
                     // Add underline
-                    const textWidth = doc.getTextWidth(trimmedLine.substring(3));
+                    const textWidth = doc.getTextWidth(
+                        trimmedLine.substring(3),
+                    );
                     doc.setDrawColor(52, 73, 94);
                     doc.setLineWidth(0.5);
-                    doc.line(margin, yPosition + 2, margin + textWidth, yPosition + 2);
-                    
+                    doc.line(
+                        margin,
+                        yPosition + 2,
+                        margin + textWidth,
+                        yPosition + 2,
+                    );
+
                     doc.setTextColor(0, 0, 0);
                     yPosition += 12;
-                    
                 } else if (trimmedLine.startsWith('### ')) {
                     // Sub-subheading
                     checkPageBreak(12);
                     yPosition += 3;
-                    
+
                     doc.setFontSize(12);
                     doc.setFont('helvetica', 'bold');
                     doc.setTextColor(85, 85, 85);
                     doc.text(trimmedLine.substring(4), margin, yPosition);
-                    
+
                     doc.setTextColor(0, 0, 0);
                     yPosition += 10;
-                    
-                } else if (trimmedLine.startsWith('- ') || trimmedLine.startsWith('* ')) {
+                } else if (
+                    trimmedLine.startsWith('- ') ||
+                    trimmedLine.startsWith('* ')
+                ) {
                     // Bullet points
                     checkPageBreak(10);
-                    
+
                     doc.setFontSize(11);
                     doc.setFont('helvetica', 'normal');
-                    
+
                     // Add bullet point
                     doc.setFillColor(41, 128, 185);
                     doc.circle(margin + 3, yPosition - 1, 1, 'F');
-                    
+
                     // Add text with proper wrapping
                     const bulletText = trimmedLine.substring(2);
                     const maxWidth = pageWidth - margin - 15;
                     const splitText = doc.splitTextToSize(bulletText, maxWidth);
-                    
+
                     splitText.forEach((textLine, i) => {
                         if (i > 0) checkPageBreak(6);
                         doc.text(textLine, margin + 8, yPosition);
                         yPosition += 6;
                     });
-                    
+
                     yPosition += 2; // Extra space after bullet
-                    
                 } else if (trimmedLine.match(/^\d+\./)) {
                     // Numbered list
                     checkPageBreak(10);
-                    
+
                     doc.setFontSize(11);
                     doc.setFont('helvetica', 'normal');
-                    
+
                     const maxWidth = pageWidth - margin - 15;
-                    const splitText = doc.splitTextToSize(trimmedLine, maxWidth);
-                    
+                    const splitText = doc.splitTextToSize(
+                        trimmedLine,
+                        maxWidth,
+                    );
+
                     splitText.forEach((textLine, i) => {
                         if (i > 0) checkPageBreak(6);
                         doc.text(textLine, margin + 5, yPosition);
                         yPosition += 6;
                     });
-                    
+
                     yPosition += 2;
-                    
                 } else if (trimmedLine.includes('**')) {
                     // Text with mixed bold formatting
                     checkPageBreak(8);
-                    
+
                     doc.setFontSize(11);
-                    
+
                     // Split text into parts (bold and regular)
                     const parts = [];
                     let currentIndex = 0;
                     let match;
                     const boldRegex = /\*\*(.*?)\*\*/g;
-                    
+
                     while ((match = boldRegex.exec(trimmedLine)) !== null) {
                         // Add text before bold part
                         if (match.index > currentIndex) {
                             parts.push({
-                                text: trimmedLine.substring(currentIndex, match.index),
-                                bold: false
+                                text: trimmedLine.substring(
+                                    currentIndex,
+                                    match.index,
+                                ),
+                                bold: false,
                             });
                         }
                         // Add bold part
                         parts.push({
                             text: match[1],
-                            bold: true
+                            bold: true,
                         });
                         currentIndex = match.index + match[0].length;
                     }
-                    
+
                     // Add remaining text after last bold part
                     if (currentIndex < trimmedLine.length) {
                         parts.push({
                             text: trimmedLine.substring(currentIndex),
-                            bold: false
+                            bold: false,
                         });
                     }
-                    
+
                     // Render each part
                     let xPosition = margin;
                     const maxWidth = pageWidth - 2 * margin;
                     let currentLine = '';
                     let lineParts = [];
-                    
+
                     parts.forEach((part, partIndex) => {
                         const words = part.text.split(' ');
-                        
+
                         words.forEach((word, wordIndex) => {
-                            const testLine = currentLine + (currentLine ? ' ' : '') + word;
+                            const testLine =
+                                currentLine + (currentLine ? ' ' : '') + word;
                             const testWidth = doc.getTextWidth(testLine);
-                            
+
                             if (testWidth > maxWidth && currentLine) {
                                 // Render current line
-                                renderMixedLine(doc, lineParts, margin, yPosition);
+                                renderMixedLine(
+                                    doc,
+                                    lineParts,
+                                    margin,
+                                    yPosition,
+                                );
                                 yPosition += 6;
                                 checkPageBreak(6);
-                                
+
                                 // Start new line
                                 currentLine = word;
                                 lineParts = [{ text: word, bold: part.bold }];
                             } else {
                                 currentLine = testLine;
-                                if (lineParts.length > 0 && lineParts[lineParts.length - 1].bold === part.bold) {
+                                if (
+                                    lineParts.length > 0 &&
+                                    lineParts[lineParts.length - 1].bold ===
+                                        part.bold
+                                ) {
                                     // Same formatting, combine with previous part
-                                    lineParts[lineParts.length - 1].text += (lineParts[lineParts.length - 1].text ? ' ' : '') + word;
+                                    lineParts[lineParts.length - 1].text +=
+                                        (lineParts[lineParts.length - 1].text
+                                            ? ' '
+                                            : '') + word;
                                 } else {
                                     // Different formatting, add new part
-                                    lineParts.push({ text: word, bold: part.bold });
+                                    lineParts.push({
+                                        text: word,
+                                        bold: part.bold,
+                                    });
                                 }
                             }
                         });
                     });
-                    
+
                     // Render final line
                     if (currentLine) {
                         renderMixedLine(doc, lineParts, margin, yPosition);
                         yPosition += 6;
                     }
-                    
+
                     yPosition += 3;
-                    
                 } else {
                     // Regular paragraph text
                     checkPageBreak(8);
-                    
+
                     doc.setFontSize(11);
                     doc.setFont('helvetica', 'normal');
-                    
+
                     const maxWidth = pageWidth - 2 * margin;
-                    const splitText = doc.splitTextToSize(trimmedLine, maxWidth);
-                    
+                    const splitText = doc.splitTextToSize(
+                        trimmedLine,
+                        maxWidth,
+                    );
+
                     splitText.forEach((textLine) => {
                         checkPageBreak(6);
                         doc.text(textLine, margin, yPosition);
                         yPosition += 6;
                     });
-                    
+
                     yPosition += 3; // Space after paragraph
                 }
             });
@@ -465,26 +516,39 @@ export default function Report() {
             const totalPages = doc.internal.getNumberOfPages();
             for (let i = 1; i <= totalPages; i++) {
                 doc.setPage(i);
-                
+
                 // Footer line
                 if (yPosition > pageHeight - 30 || i > 1) {
                     doc.setDrawColor(200, 200, 200);
                     doc.setLineWidth(0.5);
-                    doc.line(margin, pageHeight - 25, pageWidth - margin, pageHeight - 25);
+                    doc.line(
+                        margin,
+                        pageHeight - 25,
+                        pageWidth - margin,
+                        pageHeight - 25,
+                    );
                 }
-                
+
                 // Page number and generation info
                 doc.setFontSize(9);
                 doc.setFont('helvetica', 'normal');
                 doc.setTextColor(128, 128, 128);
-                doc.text(`Page ${i} of ${totalPages}`, pageWidth - margin, pageHeight - 15, { align: 'right' });
-                doc.text(`Generated on ${new Date().toLocaleString()}`, margin, pageHeight - 15);
+                doc.text(
+                    `Page ${i} of ${totalPages}`,
+                    pageWidth - margin,
+                    pageHeight - 15,
+                    { align: 'right' },
+                );
+                doc.text(
+                    `Generated on ${new Date().toLocaleString()}`,
+                    margin,
+                    pageHeight - 15,
+                );
             }
 
             // Save the PDF with better filename
             const fileName = `Daily-Report-${clientName.replace(/\s+/g, '-')}-${new Date().toISOString().split('T')[0]}.pdf`;
             doc.save(fileName);
-            
         } catch (error) {
             console.error('Error generating PDF:', error);
             alert('Failed to generate PDF. Please try again.');
