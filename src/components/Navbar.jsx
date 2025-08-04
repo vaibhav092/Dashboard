@@ -69,16 +69,6 @@ function Navbar() {
                                 </Button>
                                 <Button
                                     variant='ghost'
-                                    onClick={() =>
-                                        navigate('/admin/employee/add')
-                                    }
-                                    className='flex items-center space-x-2 text-[#cbd5e1] hover:text-[#f8fafc] hover:bg-blue-800/20 transition-colors'
-                                >
-                                    <Users className='w-4 h-4' />
-                                    <span>Add Employee</span>
-                                </Button>
-                                <Button
-                                    variant='ghost'
                                     onClick={() => navigate('/admin/client')}
                                     className='flex items-center space-x-2 text-[#cbd5e1] hover:text-[#f8fafc] hover:bg-blue-800/20 transition-colors'
                                 >

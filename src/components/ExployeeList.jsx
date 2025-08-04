@@ -9,18 +9,25 @@ import {
     doc,
     getDoc,
     onSnapshot,
+    setDoc,
+    serverTimestamp,
 } from 'firebase/firestore';
-import { db } from '@/lib/Firebase';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { auth, db } from '@/lib/Firebase';
 import { Button } from '@/components/ui/button';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { ExclamationTriangleIcon } from '@radix-ui/react-icons';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from '@/components/ui/dialog';
 import { Loader2, Plus, ToggleLeft, ToggleRight, UserPlus } from 'lucide-react';
 import {
     DropdownMenu,
@@ -34,6 +41,15 @@ export default function EmployeesList() {
     const [employees, setEmployees] = useState([]);
     const [clients, setClients] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [authError, setAuthError] = useState(null);
+    const [formData, setFormData] = useState({
+        name: '',
+        email: '',
+        password: '',
+        confirmPassword: '',
+    });
+    const [formLoading, setFormLoading] = useState(false);
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -71,18 +87,9 @@ export default function EmployeesList() {
         );
 
         // Set loading to false once we have initial data
-        const checkInitialLoad = () => {
-            if (employees.length >= 0 && clients.length >= 0) {
-                setLoading(false);
-            }
-        };
-
-        // Use a timeout to ensure loading state is properly managed
         const timeoutId = setTimeout(() => {
             setLoading(false);
         }, 3000); // Fallback timeout
-
-        checkInitialLoad();
 
         // Cleanup listeners on unmount
         return () => {
@@ -99,13 +106,91 @@ export default function EmployeesList() {
         }
     }, [employees, clients]);
 
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setAuthError(null);
+
+        // Validation
+        if (formData.password !== formData.confirmPassword) {
+            setAuthError("Passwords don't match");
+            return;
+        }
+
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+            setAuthError('Please enter a valid email');
+            return;
+        }
+
+        setFormLoading(true);
+        const toastId = toast.loading('Creating employee account...');
+
+        try {
+            // 1. Create Auth User
+            const userCredential = await createUserWithEmailAndPassword(
+                auth,
+                formData.email.trim(),
+                formData.password,
+            );
+
+            // 2. Save to Firestore
+            await setDoc(doc(db, 'users', userCredential.user.uid), {
+                uid: userCredential.user.uid,
+                name: formData.name.trim(),
+                email: formData.email.trim().toLowerCase(),
+                createdAt: serverTimestamp(),
+                isActive: true,
+            });
+
+        console.log('About to show success toast for:', formData.name);
+        toast.success(`Employee ${formData.name} added successfully`, {
+            id: toastId,
+        });
+
+            // Reset form and close modal
+            setFormData({
+                name: '',
+                email: '',
+                password: '',
+                confirmPassword: '',
+            });
+            setIsModalOpen(false);
+            setAuthError(null);
+        } catch (error) {
+            console.error('Full error:', error);
+
+            let errorMessage = error.message;
+            switch (error.code) {
+                case 'auth/email-already-in-use':
+                    errorMessage = 'This email is already registered';
+                    setAuthError(errorMessage);
+                    break;
+                case 'auth/invalid-email':
+                    errorMessage = 'Invalid email format';
+                    setAuthError(errorMessage);
+                    break;
+                case 'auth/weak-password':
+                    errorMessage = 'Password must be ≥6 characters';
+                    setAuthError(errorMessage);
+                    break;
+            }
+
+            toast.error(`Failed: ${errorMessage}`, { id: toastId });
+        } finally {
+            setFormLoading(false);
+        }
+    };
+
+    const handleChange = (e) => {
+        const { name, value } = e.target;
+        setFormData((prev) => ({ ...prev, [name]: value }));
+    };
+
     const toggleStatus = async (employeeId, currentStatus) => {
         try {
             await updateDoc(doc(db, 'users', employeeId), {
                 isActive: !currentStatus,
             });
             toast.success('Status updated');
-            // State will be updated automatically via the real-time listener
         } catch (error) {
             console.error('Error updating status:', error);
             toast.error('Failed to update status');
@@ -114,7 +199,6 @@ export default function EmployeesList() {
 
     const assignClient = async (employeeId, clientId) => {
         try {
-            // First, verify the client exists
             const clientRef = doc(db, 'clients', clientId);
             const clientSnap = await getDoc(clientRef);
             
@@ -124,18 +208,15 @@ export default function EmployeesList() {
             }
 
             const userRef = doc(db, 'users', employeeId);
-
-            // Get current assigned employees for the client
             const currentEmployees = clientSnap.data().assignedEmployees || [];
             const updatedAssignedEmployees = [
                 ...new Set([...currentEmployees, employeeId])
             ];
 
-            // Update both employee and client documents
             await Promise.all([
                 updateDoc(userRef, {
                     assignedClient: clientId,
-                    companyName: clientSnap.data().name, // Update company name as well
+                    companyName: clientSnap.data().name,
                 }),
                 updateDoc(clientRef, {
                     assignedEmployees: updatedAssignedEmployees,
@@ -143,7 +224,6 @@ export default function EmployeesList() {
             ]);
 
             toast.success('Client assigned successfully');
-            // State will be updated automatically via the real-time listeners
         } catch (error) {
             console.error('Error assigning client:', error);
             toast.error('Failed to assign client');
@@ -155,7 +235,6 @@ export default function EmployeesList() {
             const clientRef = doc(db, 'clients', clientId);
             const userRef = doc(db, 'users', employeeId);
 
-            // Get current client data
             const clientSnap = await getDoc(clientRef);
             if (!clientSnap.exists()) {
                 toast.error('Client not found');
@@ -165,11 +244,10 @@ export default function EmployeesList() {
             const currentEmployees = clientSnap.data().assignedEmployees || [];
             const updatedAssignedEmployees = currentEmployees.filter(id => id !== employeeId);
 
-            // Update both documents
             await Promise.all([
                 updateDoc(userRef, {
-                    assignedClient: null, // Remove client assignment
-                    companyName: null, // Remove company name as well
+                    assignedClient: null,
+                    companyName: null,
                 }),
                 updateDoc(clientRef, {
                     assignedEmployees: updatedAssignedEmployees,
@@ -177,26 +255,34 @@ export default function EmployeesList() {
             ]);
 
             toast.success('Client unassigned successfully');
-            // State will be updated automatically via the real-time listeners
         } catch (error) {
             console.error('Error unassigning client:', error);
             toast.error('Failed to unassign client');
         }
     };
 
-    // Helper function to get client display name
     const getClientDisplayName = (assignedClientId) => {
         if (!assignedClientId) return 'Assign Client';
         
         const assignedClient = clients.find((c) => c.id === assignedClientId);
         
         if (assignedClient) {
-            // Priority: name > companyName > fallback (based on your DB structure)
             return assignedClient.name || assignedClient.companyName || 'Unnamed Client';
         } else {
-            // Client not found in the fetched clients
             return `Client Not Found (${assignedClientId.substring(0, 8)}...)`;
         }
+    };
+
+    // Reset form when modal is closed
+    const handleModalClose = () => {
+        setIsModalOpen(false);
+        setFormData({
+            name: '',
+            email: '',
+            password: '',
+            confirmPassword: '',
+        });
+        setAuthError(null);
     };
 
     if (loading) {
@@ -213,10 +299,116 @@ export default function EmployeesList() {
                 <CardHeader className='flex flex-row items-center justify-between'>
                     <CardTitle>Employee Management</CardTitle>
                     <div className='flex gap-2'>
-                        <Button onClick={() => navigate('/admin/employee/add')}>
-                            <Plus className='mr-2 h-4 w-4' />
-                            Add Employee
-                        </Button>
+                        <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+                            <DialogTrigger asChild>
+                                <Button>
+                                    <Plus className='mr-2 h-4 w-4' />
+                                    Add Employee
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent className="sm:max-w-md text-black">
+                                <DialogHeader>
+                                    <DialogTitle className='text-2xl font-bold'>
+                                        Add New Employee
+                                    </DialogTitle>
+                                    <DialogDescription>
+                                        Create new staff accounts with secure login
+                                    </DialogDescription>
+                                </DialogHeader>
+                                
+                                <div className="mt-4">
+                                    {authError && (
+                                        <Alert variant='destructive' className='mb-4'>
+                                            <ExclamationTriangleIcon className='h-4 w-4' />
+                                            <AlertDescription>{authError}</AlertDescription>
+                                        </Alert>
+                                    )}
+                                    
+                                    <div className='space-y-4'>
+                                        <div className='space-y-2'>
+                                            <Label htmlFor='name'>Full Name</Label>
+                                            <Input
+                                                id='name'
+                                                name='name'
+                                                value={formData.name}
+                                                onChange={handleChange}
+                                                placeholder='John Doe'
+                                                required
+                                            />
+                                        </div>
+
+                                        <div className='space-y-2'>
+                                            <Label htmlFor='email'>Work Email</Label>
+                                            <Input
+                                                id='email'
+                                                name='email'
+                                                type='email'
+                                                value={formData.email}
+                                                onChange={handleChange}
+                                                placeholder='employee@company.com'
+                                                required
+                                            />
+                                        </div>
+
+                                        <div className='grid grid-cols-2 gap-4'>
+                                            <div className='space-y-2'>
+                                                <Label htmlFor='password'>Password</Label>
+                                                <Input
+                                                    id='password'
+                                                    name='password'
+                                                    type='password'
+                                                    value={formData.password}
+                                                    onChange={handleChange}
+                                                    placeholder='••••••'
+                                                    minLength={6}
+                                                    required
+                                                />
+                                            </div>
+                                            <div className='space-y-2'>
+                                                <Label htmlFor='confirmPassword'>Confirm</Label>
+                                                <Input
+                                                    id='confirmPassword'
+                                                    name='confirmPassword'
+                                                    type='password'
+                                                    value={formData.confirmPassword}
+                                                    onChange={handleChange}
+                                                    placeholder='••••••'
+                                                    required
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="flex gap-2 pt-4">
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                className="flex-1"
+                                                onClick={handleModalClose}
+                                                disabled={formLoading}
+                                            >
+                                                Cancel
+                                            </Button>
+                                            <Button
+                                                type='button'
+                                                className='flex-1'
+                                                disabled={formLoading}
+                                                onClick={handleSubmit}
+                                            >
+                                                {formLoading ? (
+                                                    <>
+                                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                        Creating...
+                                                    </>
+                                                ) : (
+                                                    'Add Employee'
+                                                )}
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </DialogContent>
+                        </Dialog>
+                        
                         <Button
                             variant='outline'
                             onClick={() => navigate('/admin/client')}
@@ -227,115 +419,117 @@ export default function EmployeesList() {
                     </div>
                 </CardHeader>
                 <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Name</TableHead>
-                                <TableHead>Email</TableHead>
-                                <TableHead>Status</TableHead>
-                                <TableHead>Client</TableHead>
-                                <TableHead>Actions</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {employees.map((employee) => (
-                                <TableRow key={employee.id}>
-                                    <TableCell className='font-medium'>
-                                        {employee.name}
-                                    </TableCell>
-                                    <TableCell>{employee.email}</TableCell>
-                                    <TableCell>
-                                        <Button
-                                            variant='ghost'
-                                            onClick={() =>
-                                                toggleStatus(
-                                                    employee.id,
-                                                    employee.isActive,
-                                                )
-                                            }
-                                        >
-                                            {employee.isActive ? (
-                                                <ToggleRight className='h-6 w-6 text-green-500' />
-                                            ) : (
-                                                <ToggleLeft className='h-6 w-6 text-gray-400' />
-                                            )}
-                                            <span className='ml-2'>
-                                                {employee.isActive
-                                                    ? 'Active'
-                                                    : 'Inactive'}
-                                            </span>
-                                        </Button>
-                                    </TableCell>
-                                    <TableCell>
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button
-                                                    variant='outline'
-                                                    size='sm'
-                                                >
-                                                    {getClientDisplayName(employee.assignedClient)}
-                                                </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent>
-                                                {employee.assignedClient && (
-                                                    <>
-                                                        <DropdownMenuItem
-                                                            onClick={() =>
-                                                                unassignClient(
-                                                                    employee.id,
-                                                                    employee.assignedClient
-                                                                )
-                                                            }
-                                                            className="text-red-600"
-                                                        >
-                                                            Unassign Current Client
-                                                        </DropdownMenuItem>
-                                                        <hr className="my-1" />
-                                                    </>
+                    <div className="overflow-x-auto">
+                        <table className="w-full border-collapse">
+                            <thead>
+                                <tr className="border-b">
+                                    <th className="text-left p-4 font-medium">Name</th>
+                                    <th className="text-left p-4 font-medium">Email</th>
+                                    <th className="text-left p-4 font-medium">Status</th>
+                                    <th className="text-left p-4 font-medium">Client</th>
+                                    <th className="text-left p-4 font-medium">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {employees.map((employee) => (
+                                    <tr key={employee.id} className="border-b hover:bg-gray-50">
+                                        <td className='p-4 font-medium'>
+                                            {employee.name}
+                                        </td>
+                                        <td className="p-4">{employee.email}</td>
+                                        <td className="p-4">
+                                            <Button
+                                                variant='ghost'
+                                                onClick={() =>
+                                                    toggleStatus(
+                                                        employee.id,
+                                                        employee.isActive,
+                                                    )
+                                                }
+                                            >
+                                                {employee.isActive ? (
+                                                    <ToggleRight className='h-6 w-6 text-green-500' />
+                                                ) : (
+                                                    <ToggleLeft className='h-6 w-6 text-gray-400' />
                                                 )}
-                                                {clients.length > 0 ? (
-                                                    clients
-                                                        .filter(client => client.id !== employee.assignedClient)
-                                                        .map((client) => (
+                                                <span className='ml-2'>
+                                                    {employee.isActive
+                                                        ? 'Active'
+                                                        : 'Inactive'}
+                                                </span>
+                                            </Button>
+                                        </td>
+                                        <td className="p-4">
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button
+                                                        variant='outline'
+                                                        size='sm'
+                                                    >
+                                                        {getClientDisplayName(employee.assignedClient)}
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent>
+                                                    {employee.assignedClient && (
+                                                        <>
                                                             <DropdownMenuItem
-                                                                key={client.id}
                                                                 onClick={() =>
-                                                                    assignClient(
+                                                                    unassignClient(
                                                                         employee.id,
-                                                                        client.id,
+                                                                        employee.assignedClient
                                                                     )
                                                                 }
+                                                                className="text-red-600"
                                                             >
-                                                                {client.companyName ||
-                                                                    client.name ||
-                                                                    `Client ${client.id.substring(0, 8)}...`}
+                                                                Unassign Current Client
                                                             </DropdownMenuItem>
-                                                        ))
-                                                ) : (
-                                                    <DropdownMenuItem disabled>
-                                                        No clients available
-                                                    </DropdownMenuItem>
-                                                )}
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-                                    </TableCell>
-                                    <TableCell>
-                                        <Button
-                                            variant='ghost'
-                                            size='sm'
-                                            onClick={() =>
-                                                navigate(
-                                                    `/admin/employee/${employee.id}`,
-                                                )
-                                            }
-                                        >
-                                            View
-                                        </Button>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
+                                                            <hr className="my-1" />
+                                                        </>
+                                                    )}
+                                                    {clients.length > 0 ? (
+                                                        clients
+                                                            .filter(client => client.id !== employee.assignedClient)
+                                                            .map((client) => (
+                                                                <DropdownMenuItem
+                                                                    key={client.id}
+                                                                    onClick={() =>
+                                                                        assignClient(
+                                                                            employee.id,
+                                                                            client.id,
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    {client.companyName ||
+                                                                        client.name ||
+                                                                        `Client ${client.id.substring(0, 8)}...`}
+                                                                </DropdownMenuItem>
+                                                            ))
+                                                    ) : (
+                                                        <DropdownMenuItem disabled>
+                                                            No clients available
+                                                        </DropdownMenuItem>
+                                                    )}
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        </td>
+                                        <td className="p-4">
+                                            <Button
+                                                variant='ghost'
+                                                size='sm'
+                                                onClick={() =>
+                                                    navigate(
+                                                        `/admin/employee/${employee.id}`,
+                                                    )
+                                                }
+                                            >
+                                                View
+                                            </Button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
                 </CardContent>
             </Card>
         </div>

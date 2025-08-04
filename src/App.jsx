@@ -3,8 +3,8 @@ import Home from './Pages/Home';
 import Login from './components/Login';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
 import Layout from './Layout';
+import { Toaster } from 'sonner';
 import AdminProtectedRoute from './components/AdminProtectedRoute';
-import AddEmployee from '@/components/AddExployee';
 import EmployeesList from '@/components/ExployeeList';
 import AddClient from './components/AddClient';
 import ClientsList from './components/ClientList';
@@ -43,7 +43,6 @@ function App() {
                         }
                     >
                         <Route path='employee'>
-                            <Route path='add' element={<AddEmployee />} />
                             <Route path=':id' element={<ViewProfile />} />
                             <Route index element={<EmployeesList />} />
                         </Route>
@@ -54,6 +53,7 @@ function App() {
                     </Route>
                 </Routes>
             </BrowserRouter>
+        <Toaster /> 
         </>
     );
 }
