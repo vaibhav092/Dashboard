@@ -38,10 +38,13 @@ const Login = () => {
     };
 
     return (
-        <div className='text-primary flex justify-center items-center h-screen'>
-            <div className='w-125 h-100 bg-gray-800 rounded-4xl flex flex-col'>
+        <div className='text-primary flex justify-center items-center h-screen flex-col'>
+            <div className='text-2xl font-bold p-2 mb-5'>
+                Welcome to the Dashboard
+            </div>
+            <div className='w-125 h-100 border-white border rounded-4xl flex flex-col'>
                 <h1 className='font-medium text-3xl text-center mt-3 p-5'>
-                    Admin Login
+                    Login
                 </h1>
                 {error && <p className='text-red-500 text-center'>{error}</p>}
                 <form onSubmit={handleLogin}>
@@ -76,8 +79,8 @@ const Login = () => {
                         required
                     />
                     <Button
-                        className='mx-27 mt-12 hover:cursor-pointer w-1/2'
-                        type='submit'
+                        className='mx-43 bg-blue-950 mt-12 rounded-3xl  hover:cursor-pointer w-33'
+                        type='default'
                         disabled={loading}
                     >
                         {loading ? 'Logging in...' : 'Submit'}
