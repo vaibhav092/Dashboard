@@ -6,7 +6,6 @@ import Layout from './Layout';
 import { Toaster } from 'sonner';
 import AdminProtectedRoute from './components/AdminProtectedRoute';
 import EmployeesList from '@/components/ExployeeList';
-import AddClient from './components/AddClient';
 import ClientsList from './components/ClientList';
 import EmployeeProfile from './components/EmployeeProfile';
 import OffliceLogin from './components/OffliceLogin';
@@ -47,7 +46,6 @@ function App() {
                             <Route index element={<EmployeesList />} />
                         </Route>
                         <Route path='client'>
-                            <Route path='add' element={<AddClient />} />
                             <Route index element={<ClientsList />} />
                         </Route>
                     </Route>
