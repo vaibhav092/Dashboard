@@ -1,16 +1,16 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { Button } from './ui/button';
 import { getAuth, signOut } from 'firebase/auth';
-import { auth } from '@/lib/Firebase';
+import { auth, db } from '@/lib/Firebase';
 import { useIsLogin } from '@/context/isLogin';
 import { useRole } from '@/context/Role';
+import { doc, getDoc } from 'firebase/firestore';
 import {
     Building,
     User,
     Users,
     Clock,
-    Target,
     FileText,
     LogOut,
 } from 'lucide-react';
@@ -19,6 +19,35 @@ function Navbar() {
     const navigate = useNavigate();
     const { setIsLogin } = useIsLogin();
     const { role } = useRole();
+    const [companyName, setCompanyName] = useState('');
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        if (role === 'employee' && auth.currentUser) {
+            const fetchCompanyData = async () => {
+                try {
+                    // Get user document
+                    const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
+                    
+                    if (userDoc.exists()) {
+                        const userData = userDoc.data();
+                        console.log(userData);
+                        setCompanyName(userData.companyName || 'Unassigned')
+                    }
+                } catch (error) {
+                    console.error('Error fetching company data:', error);
+                    setCompanyName('Error loading data');
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            fetchCompanyData();
+        } else {
+            setLoading(false);
+        }
+    }, [role]);
+
     const handleLogout = async () => {
         try {
             await signOut(auth);
@@ -93,7 +122,6 @@ function Navbar() {
                                     <Clock className='w-4 h-4' />
                                     <span>Office Login</span>
                                 </Button>
-
                                 <Button
                                     variant='ghost'
                                     onClick={() => navigate('/report')}
@@ -106,17 +134,19 @@ function Navbar() {
                         )}
                     </div>
 
-                    {/* Right side - Role badge and logout */}
+                    {/* Right side - Role badge/company name and logout */}
                     <div className='flex items-center space-x-3'>
-                        <span
-                            className={`text-xs font-medium px-3 py-1 rounded-md border ${
-                                role === 'admin'
-                                    ? 'bg-[#3b82f6]/20 text-[#3b82f6] border-[#3b82f6]/30'
-                                    : 'bg-green-500/20 text-green-400 border-green-500/30'
-                            }`}
-                        >
-                            {role?.toUpperCase()}
-                        </span>
+                        {role === 'admin' ? (
+                            <span className='text-xs font-medium px-3 py-1 rounded-md border bg-[#3b82f6]/20 text-[#3b82f6] border-[#3b82f6]/30'>
+                                ADMIN
+                            </span>
+                        ) : (
+                            !loading && (
+                                <span className='text-xs font-medium px-3 py-1 rounded-md border bg-green-500/20 text-green-400 border-green-500/30'>
+                                    {companyName || 'Unassigned'}
+                                </span>
+                            )
+                        )}
                         <Button
                             onClick={handleLogout}
                             className='flex items-center space-x-2 bg-red-600/80 hover:bg-red-700 text-white border-red-600/50 hover:border-red-700'
