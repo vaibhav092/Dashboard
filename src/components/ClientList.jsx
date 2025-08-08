@@ -192,7 +192,7 @@ export default function ClientsList() {
             (error) => {
                 console.error('Error fetching clients:', error);
                 toast.error('Failed to load clients');
-            }
+            },
         );
 
         const unsubscribeEmployees = onSnapshot(
@@ -210,7 +210,7 @@ export default function ClientsList() {
             (error) => {
                 console.error('Error fetching employees:', error);
                 toast.error('Failed to load employees');
-            }
+            },
         );
 
         // Use a timeout to ensure loading state is properly managed
@@ -277,7 +277,7 @@ export default function ClientsList() {
             toast.success(`Client ${formData.name} created successfully`, {
                 id: toastId,
             });
-            
+
             // Reset form and close modal
             resetForm();
             setShowAddClientModal(false);
@@ -369,7 +369,7 @@ export default function ClientsList() {
                 updateDoc(userRef, {
                     assignedClient: clientId,
                     companyName: clientSnap.data().name,
-                })
+                }),
             ]);
 
             toast.success('Employee assigned successfully!');
@@ -403,7 +403,7 @@ export default function ClientsList() {
                 updateDoc(userRef, {
                     assignedClient: null,
                     companyName: null,
-                })
+                }),
             ]);
 
             toast.success('Employee removed successfully!');
@@ -415,8 +415,11 @@ export default function ClientsList() {
 
     // Helper function to check if employee is already assigned to another client
     const isEmployeeAssignedToOtherClient = (employeeId, currentClientId) => {
-        const employee = employees.find(emp => emp.id === employeeId);
-        return employee?.assignedClient && employee.assignedClient !== currentClientId;
+        const employee = employees.find((emp) => emp.id === employeeId);
+        return (
+            employee?.assignedClient &&
+            employee.assignedClient !== currentClientId
+        );
     };
 
     if (loading) {
@@ -468,9 +471,11 @@ export default function ClientsList() {
                                         className='border border-gray-200 rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-all duration-300 ease-in-out transform hover:-translate-y-1 bg-white flex flex-col'
                                     >
                                         <CardHeader className='pb-3 bg-gray-50 border-b border-gray-200 flex-grow'>
-                                            <CardTitle 
+                                            <CardTitle
                                                 className='text-lg font-bold text-gray-900 truncate cursor-pointer hover:text-blue-600'
-                                                onClick={() => handleClientClick(client)}
+                                                onClick={() =>
+                                                    handleClientClick(client)
+                                                }
                                             >
                                                 {client.name}
                                             </CardTitle>
@@ -558,34 +563,53 @@ export default function ClientsList() {
                                                     ) : (
                                                         <>
                                                             {employees
-                                                                .filter(employee => 
-                                                                    !client.assignedEmployees?.includes(employee.id)
+                                                                .filter(
+                                                                    (
+                                                                        employee,
+                                                                    ) =>
+                                                                        !client.assignedEmployees?.includes(
+                                                                            employee.id,
+                                                                        ),
                                                                 )
                                                                 .map(
-                                                                (employee) => {
-                                                                    const isAssignedElsewhere = isEmployeeAssignedToOtherClient(employee.id, client.id);
-                                                                    return (
-                                                                        <DropdownMenuItem
-                                                                            key={employee.id}
-                                                                            onClick={() =>
-                                                                                assignEmployee(
-                                                                                    client.id,
-                                                                                    employee.id,
-                                                                                )
-                                                                            }
-                                                                            disabled={isAssignedElsewhere}
-                                                                        >
-                                                                            <UserPlus className='mr-2 h-4 w-4' />{' '}
-                                                                            Assign {employee.name}
-                                                                            {isAssignedElsewhere && (
-                                                                                <span className="text-xs text-gray-500 ml-2">
-                                                                                    (Already assigned)
-                                                                                </span>
-                                                                            )}
-                                                                        </DropdownMenuItem>
-                                                                    );
-                                                                }
-                                                            )}
+                                                                    (
+                                                                        employee,
+                                                                    ) => {
+                                                                        const isAssignedElsewhere =
+                                                                            isEmployeeAssignedToOtherClient(
+                                                                                employee.id,
+                                                                                client.id,
+                                                                            );
+                                                                        return (
+                                                                            <DropdownMenuItem
+                                                                                key={
+                                                                                    employee.id
+                                                                                }
+                                                                                onClick={() =>
+                                                                                    assignEmployee(
+                                                                                        client.id,
+                                                                                        employee.id,
+                                                                                    )
+                                                                                }
+                                                                                disabled={
+                                                                                    isAssignedElsewhere
+                                                                                }
+                                                                            >
+                                                                                <UserPlus className='mr-2 h-4 w-4' />{' '}
+                                                                                Assign{' '}
+                                                                                {
+                                                                                    employee.name
+                                                                                }
+                                                                                {isAssignedElsewhere && (
+                                                                                    <span className='text-xs text-gray-500 ml-2'>
+                                                                                        (Already
+                                                                                        assigned)
+                                                                                    </span>
+                                                                                )}
+                                                                            </DropdownMenuItem>
+                                                                        );
+                                                                    },
+                                                                )}
                                                             {client.assignedEmployees &&
                                                                 client
                                                                     .assignedEmployees
@@ -651,14 +675,20 @@ export default function ClientsList() {
                                     Add New Client
                                 </DialogTitle>
                                 <DialogDescription className='text-gray-600'>
-                                    Fill in the details to add a new client to your system.
+                                    Fill in the details to add a new client to
+                                    your system.
                                 </DialogDescription>
                             </DialogHeader>
-                            
-<form onSubmit={handleAddClientSubmit} className='space-y-6'>
+
+                            <form
+                                onSubmit={handleAddClientSubmit}
+                                className='space-y-6'
+                            >
                                 <div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
-                                    <div className="pb-2">
-                                        <Label htmlFor='name'>Client Name *</Label>
+                                    <div className='pb-2'>
+                                        <Label htmlFor='name'>
+                                            Client Name *
+                                        </Label>
                                         <Input
                                             id='name'
                                             name='name'
@@ -668,8 +698,10 @@ export default function ClientsList() {
                                         />
                                     </div>
 
-                                    <div className="pb-2">
-                                        <Label htmlFor='country'>Country *</Label>
+                                    <div className='pb-2'>
+                                        <Label htmlFor='country'>
+                                            Country *
+                                        </Label>
                                         <Input
                                             id='country'
                                             name='country'
@@ -679,8 +711,10 @@ export default function ClientsList() {
                                         />
                                     </div>
 
-                                    <div className="pb-2">
-                                        <Label htmlFor='state'>State/Region</Label>
+                                    <div className='pb-2'>
+                                        <Label htmlFor='state'>
+                                            State/Region
+                                        </Label>
                                         <Input
                                             id='state'
                                             name='state'
@@ -689,8 +723,10 @@ export default function ClientsList() {
                                         />
                                     </div>
 
-                                    <div className="pb-2">
-                                        <Label htmlFor='timezone'>Timezone *</Label>
+                                    <div className='pb-2'>
+                                        <Label htmlFor='timezone'>
+                                            Timezone *
+                                        </Label>
                                         <Select
                                             name='timezone'
                                             value={formData.timezone}
@@ -719,7 +755,7 @@ export default function ClientsList() {
                                     </div>
                                 </div>
 
-                                <div className="pb-2">
+                                <div className='pb-2'>
                                     <Label htmlFor='plan'>Plan *</Label>
                                     <Select
                                         name='plan'
@@ -748,7 +784,7 @@ export default function ClientsList() {
                                     </Select>
                                 </div>
 
-                                <div className="pb-2">
+                                <div className='pb-2'>
                                     <Label htmlFor='businessType'>
                                         Business Type *
                                     </Label>
@@ -768,7 +804,10 @@ export default function ClientsList() {
                                         </SelectTrigger>
                                         <SelectContent>
                                             {businessTypes.map((type) => (
-                                                <SelectItem key={type} value={type}>
+                                                <SelectItem
+                                                    key={type}
+                                                    value={type}
+                                                >
                                                     {type}
                                                 </SelectItem>
                                             ))}
@@ -776,14 +815,16 @@ export default function ClientsList() {
                                     </Select>
                                 </div>
 
-                                <div className="pb-2">
+                                <div className='pb-2'>
                                     <Label>Tech Stack</Label>
                                     <div className='flex flex-wrap gap-2 mt-2'>
                                         {techStackOptions.map((tech) => (
                                             <Button
                                                 key={tech}
                                                 variant={
-                                                    formData.techStack.includes(tech)
+                                                    formData.techStack.includes(
+                                                        tech,
+                                                    )
                                                         ? 'default'
                                                         : 'outline'
                                                 }

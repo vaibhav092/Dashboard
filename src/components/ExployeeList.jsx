@@ -67,7 +67,7 @@ export default function EmployeesList() {
             (error) => {
                 console.error('Error fetching employees:', error);
                 toast.error('Failed to load employees');
-            }
+            },
         );
 
         const unsubscribeClients = onSnapshot(
@@ -83,7 +83,7 @@ export default function EmployeesList() {
             (error) => {
                 console.error('Error fetching clients:', error);
                 toast.error('Failed to load clients');
-            }
+            },
         );
 
         // Set loading to false once we have initial data
@@ -141,10 +141,10 @@ export default function EmployeesList() {
                 isActive: true,
             });
 
-        console.log('About to show success toast for:', formData.name);
-        toast.success(`Employee ${formData.name} added successfully`, {
-            id: toastId,
-        });
+            console.log('About to show success toast for:', formData.name);
+            toast.success(`Employee ${formData.name} added successfully`, {
+                id: toastId,
+            });
 
             // Reset form and close modal
             setFormData({
@@ -201,7 +201,7 @@ export default function EmployeesList() {
         try {
             const clientRef = doc(db, 'clients', clientId);
             const clientSnap = await getDoc(clientRef);
-            
+
             if (!clientSnap.exists()) {
                 toast.error('Client not found');
                 return;
@@ -210,7 +210,7 @@ export default function EmployeesList() {
             const userRef = doc(db, 'users', employeeId);
             const currentEmployees = clientSnap.data().assignedEmployees || [];
             const updatedAssignedEmployees = [
-                ...new Set([...currentEmployees, employeeId])
+                ...new Set([...currentEmployees, employeeId]),
             ];
 
             await Promise.all([
@@ -220,7 +220,7 @@ export default function EmployeesList() {
                 }),
                 updateDoc(clientRef, {
                     assignedEmployees: updatedAssignedEmployees,
-                })
+                }),
             ]);
 
             toast.success('Client assigned successfully');
@@ -242,7 +242,9 @@ export default function EmployeesList() {
             }
 
             const currentEmployees = clientSnap.data().assignedEmployees || [];
-            const updatedAssignedEmployees = currentEmployees.filter(id => id !== employeeId);
+            const updatedAssignedEmployees = currentEmployees.filter(
+                (id) => id !== employeeId,
+            );
 
             await Promise.all([
                 updateDoc(userRef, {
@@ -251,7 +253,7 @@ export default function EmployeesList() {
                 }),
                 updateDoc(clientRef, {
                     assignedEmployees: updatedAssignedEmployees,
-                })
+                }),
             ]);
 
             toast.success('Client unassigned successfully');
@@ -263,11 +265,15 @@ export default function EmployeesList() {
 
     const getClientDisplayName = (assignedClientId) => {
         if (!assignedClientId) return 'Assign Client';
-        
+
         const assignedClient = clients.find((c) => c.id === assignedClientId);
-        
+
         if (assignedClient) {
-            return assignedClient.name || assignedClient.companyName || 'Unnamed Client';
+            return (
+                assignedClient.name ||
+                assignedClient.companyName ||
+                'Unnamed Client'
+            );
         } else {
             return `Client Not Found (${assignedClientId.substring(0, 8)}...)`;
         }
@@ -299,34 +305,45 @@ export default function EmployeesList() {
                 <CardHeader className='flex flex-row items-center justify-between'>
                     <CardTitle>Employee Management</CardTitle>
                     <div className='flex gap-2'>
-                        <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+                        <Dialog
+                            open={isModalOpen}
+                            onOpenChange={setIsModalOpen}
+                        >
                             <DialogTrigger asChild>
                                 <Button>
                                     <Plus className='mr-2 h-4 w-4' />
                                     Add Employee
                                 </Button>
                             </DialogTrigger>
-                            <DialogContent className="sm:max-w-md text-black">
+                            <DialogContent className='sm:max-w-md text-black'>
                                 <DialogHeader>
                                     <DialogTitle className='text-2xl font-bold'>
                                         Add New Employee
                                     </DialogTitle>
                                     <DialogDescription>
-                                        Create new staff accounts with secure login
+                                        Create new staff accounts with secure
+                                        login
                                     </DialogDescription>
                                 </DialogHeader>
-                                
-                                <div className="mt-4">
+
+                                <div className='mt-4'>
                                     {authError && (
-                                        <Alert variant='destructive' className='mb-4'>
+                                        <Alert
+                                            variant='destructive'
+                                            className='mb-4'
+                                        >
                                             <ExclamationTriangleIcon className='h-4 w-4' />
-                                            <AlertDescription>{authError}</AlertDescription>
+                                            <AlertDescription>
+                                                {authError}
+                                            </AlertDescription>
                                         </Alert>
                                     )}
-                                    
+
                                     <div className='space-y-4'>
                                         <div className='space-y-2'>
-                                            <Label htmlFor='name'>Full Name</Label>
+                                            <Label htmlFor='name'>
+                                                Full Name
+                                            </Label>
                                             <Input
                                                 id='name'
                                                 name='name'
@@ -338,7 +355,9 @@ export default function EmployeesList() {
                                         </div>
 
                                         <div className='space-y-2'>
-                                            <Label htmlFor='email'>Work Email</Label>
+                                            <Label htmlFor='email'>
+                                                Work Email
+                                            </Label>
                                             <Input
                                                 id='email'
                                                 name='email'
@@ -352,7 +371,9 @@ export default function EmployeesList() {
 
                                         <div className='grid grid-cols-2 gap-4'>
                                             <div className='space-y-2'>
-                                                <Label htmlFor='password'>Password</Label>
+                                                <Label htmlFor='password'>
+                                                    Password
+                                                </Label>
                                                 <Input
                                                     id='password'
                                                     name='password'
@@ -365,12 +386,16 @@ export default function EmployeesList() {
                                                 />
                                             </div>
                                             <div className='space-y-2'>
-                                                <Label htmlFor='confirmPassword'>Confirm</Label>
+                                                <Label htmlFor='confirmPassword'>
+                                                    Confirm
+                                                </Label>
                                                 <Input
                                                     id='confirmPassword'
                                                     name='confirmPassword'
                                                     type='password'
-                                                    value={formData.confirmPassword}
+                                                    value={
+                                                        formData.confirmPassword
+                                                    }
                                                     onChange={handleChange}
                                                     placeholder='••••••'
                                                     required
@@ -378,11 +403,11 @@ export default function EmployeesList() {
                                             </div>
                                         </div>
 
-                                        <div className="flex gap-2 pt-4">
+                                        <div className='flex gap-2 pt-4'>
                                             <Button
-                                                type="button"
-                                                variant="outline"
-                                                className="flex-1"
+                                                type='button'
+                                                variant='outline'
+                                                className='flex-1'
                                                 onClick={handleModalClose}
                                                 disabled={formLoading}
                                             >
@@ -396,7 +421,7 @@ export default function EmployeesList() {
                                             >
                                                 {formLoading ? (
                                                     <>
-                                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                        <Loader2 className='mr-2 h-4 w-4 animate-spin' />
                                                         Creating...
                                                     </>
                                                 ) : (
@@ -408,7 +433,7 @@ export default function EmployeesList() {
                                 </div>
                             </DialogContent>
                         </Dialog>
-                        
+
                         <Button
                             variant='outline'
                             onClick={() => navigate('/admin/client')}
@@ -419,25 +444,40 @@ export default function EmployeesList() {
                     </div>
                 </CardHeader>
                 <CardContent>
-                    <div className="overflow-x-auto">
-                        <table className="w-full border-collapse">
+                    <div className='overflow-x-auto'>
+                        <table className='w-full border-collapse'>
                             <thead>
-                                <tr className="border-b">
-                                    <th className="text-left p-4 font-medium">Name</th>
-                                    <th className="text-left p-4 font-medium">Email</th>
-                                    <th className="text-left p-4 font-medium">Status</th>
-                                    <th className="text-left p-4 font-medium">Client</th>
-                                    <th className="text-left p-4 font-medium">Actions</th>
+                                <tr className='border-b'>
+                                    <th className='text-left p-4 font-medium'>
+                                        Name
+                                    </th>
+                                    <th className='text-left p-4 font-medium'>
+                                        Email
+                                    </th>
+                                    <th className='text-left p-4 font-medium'>
+                                        Status
+                                    </th>
+                                    <th className='text-left p-4 font-medium'>
+                                        Client
+                                    </th>
+                                    <th className='text-left p-4 font-medium'>
+                                        Actions
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {employees.map((employee) => (
-                                    <tr key={employee.id} className="border-b hover:bg-gray-50">
+                                    <tr
+                                        key={employee.id}
+                                        className='border-b hover:bg-gray-50'
+                                    >
                                         <td className='p-4 font-medium'>
                                             {employee.name}
                                         </td>
-                                        <td className="p-4">{employee.email}</td>
-                                        <td className="p-4">
+                                        <td className='p-4'>
+                                            {employee.email}
+                                        </td>
+                                        <td className='p-4'>
                                             <Button
                                                 variant='ghost'
                                                 onClick={() =>
@@ -459,14 +499,16 @@ export default function EmployeesList() {
                                                 </span>
                                             </Button>
                                         </td>
-                                        <td className="p-4">
+                                        <td className='p-4'>
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild>
                                                     <Button
                                                         variant='outline'
                                                         size='sm'
                                                     >
-                                                        {getClientDisplayName(employee.assignedClient)}
+                                                        {getClientDisplayName(
+                                                            employee.assignedClient,
+                                                        )}
                                                     </Button>
                                                 </DropdownMenuTrigger>
                                                 <DropdownMenuContent>
@@ -476,22 +518,29 @@ export default function EmployeesList() {
                                                                 onClick={() =>
                                                                     unassignClient(
                                                                         employee.id,
-                                                                        employee.assignedClient
+                                                                        employee.assignedClient,
                                                                     )
                                                                 }
-                                                                className="text-red-600"
+                                                                className='text-red-600'
                                                             >
-                                                                Unassign Current Client
+                                                                Unassign Current
+                                                                Client
                                                             </DropdownMenuItem>
-                                                            <hr className="my-1" />
+                                                            <hr className='my-1' />
                                                         </>
                                                     )}
                                                     {clients.length > 0 ? (
                                                         clients
-                                                            .filter(client => client.id !== employee.assignedClient)
+                                                            .filter(
+                                                                (client) =>
+                                                                    client.id !==
+                                                                    employee.assignedClient,
+                                                            )
                                                             .map((client) => (
                                                                 <DropdownMenuItem
-                                                                    key={client.id}
+                                                                    key={
+                                                                        client.id
+                                                                    }
                                                                     onClick={() =>
                                                                         assignClient(
                                                                             employee.id,
@@ -505,14 +554,16 @@ export default function EmployeesList() {
                                                                 </DropdownMenuItem>
                                                             ))
                                                     ) : (
-                                                        <DropdownMenuItem disabled>
+                                                        <DropdownMenuItem
+                                                            disabled
+                                                        >
                                                             No clients available
                                                         </DropdownMenuItem>
                                                     )}
                                                 </DropdownMenuContent>
                                             </DropdownMenu>
                                         </td>
-                                        <td className="p-4">
+                                        <td className='p-4'>
                                             <Button
                                                 variant='ghost'
                                                 size='sm'

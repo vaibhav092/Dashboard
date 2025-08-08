@@ -6,14 +6,7 @@ import { auth, db } from '@/lib/Firebase';
 import { useIsLogin } from '@/context/isLogin';
 import { useRole } from '@/context/Role';
 import { doc, getDoc } from 'firebase/firestore';
-import {
-    Building,
-    User,
-    Users,
-    Clock,
-    FileText,
-    LogOut,
-} from 'lucide-react';
+import { Building, User, Users, Clock, FileText, LogOut } from 'lucide-react';
 
 function Navbar() {
     const navigate = useNavigate();
@@ -27,12 +20,14 @@ function Navbar() {
             const fetchCompanyData = async () => {
                 try {
                     // Get user document
-                    const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
-                    
+                    const userDoc = await getDoc(
+                        doc(db, 'users', auth.currentUser.uid),
+                    );
+
                     if (userDoc.exists()) {
                         const userData = userDoc.data();
                         console.log(userData);
-                        setCompanyName(userData.companyName || 'Unassigned')
+                        setCompanyName(userData.companyName || 'Unassigned');
                     }
                 } catch (error) {
                     console.error('Error fetching company data:', error);
